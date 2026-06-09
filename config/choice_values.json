@@ -1,0 +1,180 @@
+{
+  "RequestingTeam": [
+    "Engineering",
+    "PMO",
+    "Product Management",
+    "Operations",
+    "Quality",
+    "Warranty",
+    "Field Service",
+    "Manufacturing",
+    "Sales/Pre-Sales",
+    "Cross Functional"
+  ],
+  "CurrentStatus": [
+    "(1) New",
+    "(2) Needs Review",
+    "(3) Discovery",
+    "(4) Categorized",
+    "(5) Needs Owner",
+    "(6) In Evaluation",
+    "(7) Pilot Candidate",
+    "(8) Active Pilot"
+  ],
+  "Priority": [
+    "Low",
+    "Medium",
+    "High",
+    "Critical"
+  ],
+  "OperatingBucket": [
+    "Outside/Pre-Sale",
+    "Inside/Pre-Sale",
+    "Manufacturing",
+    "Post Shipment",
+    "Crosss-Functional/Governance"
+  ],
+  "ProcessStage": [
+    "Opportunities",
+    "Solution Development",
+    "Solution Approval",
+    "Order Validation",
+    "Order Creation",
+    "Order Activation",
+    "Production",
+    "Delivery",
+    "Installation",
+    "Deployment",
+    "Incident Identification",
+    "Sustaining Engineering",
+    "Implementation",
+    "Sustaining",
+    "Resolution",
+    "Feedback",
+    "Governance/Intake"
+  ],
+  "UpstreamDownstreamImpact": [
+    "Localized to one stage",
+    "Upstream",
+    "Downstream",
+    "Cross-Functional",
+    "Unknown"
+  ],
+  "AIUseCaseType": [
+    "Classification",
+    "Action",
+    "Both",
+    "Unknown/Needs Review"
+  ],
+  "PrimaryFunctionChoice": [
+    "Summarize",
+    "Organize",
+    "Compare",
+    "Explain",
+    "Group/Categorize",
+    "Identify Patterns",
+    "Prioritize Signals",
+    "Generate Content",
+    "Generate Code",
+    "Create Records",
+    "Update Records",
+    "Trigger Workflow",
+    "Send Notification",
+    "Recommend Action",
+    "Other"
+  ],
+  "LevelOfAnalysis": [
+    "Level 0 - Signal Capture",
+    "Level 1 - Categorization",
+    "Level 2 - Descriptive Analysis",
+    "Level 3 - Diagnostic Analysis",
+    "Level 4 - Predictive/Risk Analysis",
+    "Level 5 - Prescriptive Recommendation",
+    "Leve 6 - Action/Automation",
+    "Level 7 - Release Candidate"
+  ],
+  "AutomationRisk": [
+    "Low - Read Only/Summarize Only",
+    "Medium - Recommendations with human review",
+    "High - Creates or updates work items"
+  ],
+  "SignalStrength": [
+    "Isolated Example",
+    "Repeated within One Team",
+    "Repeated Across Multiple Teams",
+    "Cross-Functional Pattern"
+  ],
+  "FrequencyOfPainPoint": [
+    "One-Time",
+    "Occasional",
+    "Daily",
+    "Weekly",
+    "Monthly",
+    "Continuous"
+  ],
+  "ManualEffortLevel": [
+    "Low",
+    "Medium",
+    "High",
+    "Very High"
+  ],
+  "Repeatability": [
+    "Low",
+    "Medium",
+    "High",
+    "Very High"
+  ],
+  "ScalabilityPotential": [
+    "Team-Specific",
+    "Function-Specific",
+    "Cross-Functional",
+    "Enterprise Candidate"
+  ],
+  "PrimaryTool": [
+    "VS Code",
+    "OpenAI/Anthropic",
+    "Copilot",
+    "Copilot Studio(bot)",
+    "Power Automate",
+    "Power BI",
+    "Sharepoint",
+    "Smartsheet",
+    "ADO",
+    "Databricks",
+    "Miro",
+    "Figma",
+    "Salesforce",
+    "Other",
+    "Repositiory/Marketplace Tooling"
+  ],
+  "PrimaryDataSource": [
+    "Meeting Transcript",
+    "Email",
+    "Teams Chat",
+    "Smartsheet",
+    "ADO",
+    "PBI Dataset/Semantic Model",
+    "Sharepoint List",
+    "Salesforce",
+    "Warranty Data",
+    "Quality Data",
+    "Oracle/Manufacturing Data",
+    "Customer Feedback",
+    "Other"
+  ],
+  "DataSensitivity": [
+    "Public/Low",
+    "Internal",
+    "Confidential",
+    "Restricted",
+    "Unknown"
+  ],
+  "ScheduleHealth": [
+    "Not Started",
+    "On Track",
+    "At Risk",
+    "Blocked",
+    "Stale",
+    "Completed"
+  ]
+}
