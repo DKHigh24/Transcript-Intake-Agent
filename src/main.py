@@ -38,6 +38,7 @@ from candidate_detector import detect_candidates
 from classifier import classify_candidates
 from validators import validate_all_rows
 from review_exporter import export_review_workbook
+from master_exporter import update_master
 from power_automate_client import build_sharepoint_payload, push_to_power_automate
 from mock_data import MOCK_CANDIDATES, MOCK_CLASSIFIED_ROWS
 from report_generator import generate_report
@@ -177,6 +178,18 @@ def rebuild_all_reports(history: list[dict]) -> None:
 
     print(f"[rebuild] done — {len(dates)} weekly + {len(months)} monthly reports refreshed")
 
+    # Rebuild master opportunities workbook from all archived weeks
+    print("[rebuild] refreshing master opportunities workbook ...")
+    from master_exporter import update_master as _update_master
+    for d in dates:
+        from datetime import datetime as _dt3
+        meeting_date_obj = _dt3.strptime(d, "%Y-%m-%d").date()
+        archive_dir = period_utils.week_archive_dir(meeting_date_obj)
+        archived_rows_path = archive_dir / "classified_rows.json"
+        if archived_rows_path.exists():
+            week_rows_m = json.loads(archived_rows_path.read_text(encoding="utf-8"))
+            _update_master(week_rows_m, d)
+
     # Regenerate the upcoming session presentation from the latest meeting date.
     if dates:
         from datetime import datetime as _dt2
@@ -214,6 +227,9 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
         if Path(src).exists():
             shutil.copy2(src, archive_dir / Path(src).name)
     print(f"  archived classified rows, workbook, payload -> {archive_dir}")
+
+    print("\n=== Step 9b: Update master opportunities workbook ===")
+    update_master(rows, period["date"])
 
     print("\n=== Step 10: Ingest into opportunity history ===")
     # Snapshot the existing maximum date BEFORE ingest to detect back-dating.

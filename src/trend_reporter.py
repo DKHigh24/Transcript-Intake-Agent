@@ -284,7 +284,7 @@ def generate_monthly_report(history: list[dict], month: str, out_path: str) -> s
     recur_vals = [w["recurring"] for w in a["per_week"]]
 
     # Stacked bucket-by-week dataset.
-    all_buckets = sorted({b for d in a["bucket_by_week"].values() for b in d})
+    all_buckets = sorted({b for d in a["bucket_by_week"].values() for b in d if b is not None})
     bucket_datasets = []
     for i, b in enumerate(all_buckets):
         bucket_datasets.append({
