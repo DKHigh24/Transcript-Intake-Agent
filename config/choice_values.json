@@ -231,5 +231,11 @@
     "Review Board",
     "Cross-Functional",
     "Other / Not Classified"
+  ],
+  "MaturitySignal": [
+    "Aspirational",
+    "In Progress / Piloting",
+    "Delivered / Active Today",
+    "Unknown"
   ]
 }

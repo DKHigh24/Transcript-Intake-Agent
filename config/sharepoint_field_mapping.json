@@ -32,5 +32,6 @@
   "RiskScore": "RiskScore",
   "ReadinessScore": "ReadinessScore",
   "SignalScore": "SignalScore",
-  "SubOrdinateFunction": "SubOrdinateFunction"
+  "SubOrdinateFunction": "SubOrdinateFunction",
+  "MaturitySignal": "MaturitySignal"
 }

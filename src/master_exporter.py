@@ -30,42 +30,43 @@ MASTER_COLUMNS = [
     "SourceSpeaker",                # D
     "SourceTimestamp",              # E
     "ConfidenceLevel",              # F
-    "AIUseCaseType",                # G
-    "PrimaryFunctionChoice",        # H
-    "LevelOfAnalysis",              # I
-    "OperatingBucket",              # J
-    "ProcessStage",                 # K
-    "SubOrdinateFunction",          # L
-    "UpstreamDownstreamImpact",     # M
-    "SignalStrength",               # N
-    "RequestingTeam",               # O
-    "SuggestedBusinessOwnerText",   # P
-    "SuggestedTechnicalOwnerText",  # Q
-    "SuggestedSMEChampionText",     # R
-    "PrimaryTool",                  # S
-    "PrimaryDataSource",            # T
-    "DataSensitivity",              # U
-    "AutomationRisk",               # V
-    "GuardrailsNeeded",             # W
-    "SecurityAccessConcern",        # X
-    "LegalComplianceConcern",       # Y
-    "HumanInTheLoopRequired",       # Z
-    "HumanReviewRequired",          # AA
-    "IntegrationNeeded",            # AB
-    "FrequencyOfPainPoint",         # AC
-    "ManualEffortLevel",            # AD
-    "Repeatability",                # AE
-    "ScalabilityPotential",         # AF
-    "NextStep",                     # AG
-    "CurrentStatus",                # AH
-    "Priority",                     # AI
-    "ScheduleHealth",               # AJ
-    "ValueScore",                   # AK
-    "EffortScore",                  # AL
-    "RiskScore",                    # AM
-    "ReadinessScore",               # AN
-    "SignalScore",                  # AO
-    "WeekDate",                     # AP — Power BI time slicer
+    "MaturitySignal",               # G
+    "AIUseCaseType",                # H
+    "PrimaryFunctionChoice",        # I
+    "LevelOfAnalysis",              # J
+    "OperatingBucket",              # K
+    "ProcessStage",                 # L
+    "SubOrdinateFunction",          # M
+    "UpstreamDownstreamImpact",     # N
+    "SignalStrength",               # O
+    "RequestingTeam",               # P
+    "SuggestedBusinessOwnerText",   # Q
+    "SuggestedTechnicalOwnerText",  # R
+    "SuggestedSMEChampionText",     # S
+    "PrimaryTool",                  # T
+    "PrimaryDataSource",            # U
+    "DataSensitivity",              # V
+    "AutomationRisk",               # W
+    "GuardrailsNeeded",             # X
+    "SecurityAccessConcern",        # Y
+    "LegalComplianceConcern",       # Z
+    "HumanInTheLoopRequired",       # AA
+    "HumanReviewRequired",          # AB
+    "IntegrationNeeded",            # AC
+    "FrequencyOfPainPoint",         # AD
+    "ManualEffortLevel",            # AE
+    "Repeatability",                # AF
+    "ScalabilityPotential",         # AG
+    "NextStep",                     # AH
+    "CurrentStatus",                # AI
+    "Priority",                     # AJ
+    "ScheduleHealth",               # AK
+    "ValueScore",                   # AL
+    "EffortScore",                  # AM
+    "RiskScore",                    # AN
+    "ReadinessScore",               # AO
+    "SignalScore",                  # AP
+    "WeekDate",                     # AQ — Power BI time slicer
 ]
 
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")

@@ -26,7 +26,7 @@ load_dotenv()
 # ── Model selection ──────────────────────────────────────────────────────────
 # Override with OPENAI_MODEL (OpenAI path) or COPILOT_MODEL (Copilot path).
 _OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-_COPILOT_MODEL = os.getenv("COPILOT_MODEL", "claude-sonnet-4.5")
+_COPILOT_MODEL = os.getenv("COPILOT_MODEL", "claude-sonnet-4.6")
 
 
 def _github_token() -> str | None:

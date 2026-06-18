@@ -355,6 +355,59 @@ def _slide_kb_candidate(prs: Presentation, idx: int, entry: dict) -> None:
         (next_step[:320], 12, False, DARK, PP_ALIGN.LEFT),
     ], MSO_ANCHOR.TOP)
 
+    # Speaker notes include MaturitySignal for presenter context
+    maturity = last_occ.get("MaturitySignal") or "Unknown"
+    notes_slide = slide.notes_slide
+    notes_slide.notes_text_frame.text = (
+        f"Maturity Signal: {maturity}\n"
+        f"Sessions seen: {occ_count} | First: {entry.get('first_seen', 'N/A')} | Last: {entry.get('last_seen', 'N/A')}\n"
+        f"Evidence: {evidence[:400]}"
+    )
+
+
+def _slide_live_wins(prs: Presentation, delivered_rows: list[dict], current_date: str) -> None:
+    """Live Wins This Week — only rendered when delivered_rows is non-empty."""
+    slide = _blank_slide(prs)
+    _slide_bg(slide, LIGHT)
+    _header_bar(slide, f"Live Wins This Week  \u2013  {current_date}")
+    _rect(slide, Inches(0), Inches(1.4), Inches(0.18), H - Inches(1.4), fill=RGBColor(0x05, 0x96, 0x69))
+
+    col_headers = ["Opportunity", "Process Stage", "Sub. Function", "Evidence"]
+    col_x      = [Inches(0.35), Inches(5.0), Inches(7.2), Inches(9.4)]
+    col_widths  = [Inches(4.55), Inches(2.1),  Inches(2.1),  Inches(3.75)]
+    row_h = Inches(0.5)
+    header_y = Inches(1.55)
+
+    _rect(slide, Inches(0.35), header_y, W - Inches(0.7), row_h, fill=RGBColor(0x05, 0x96, 0x69))
+    for hdr, cx, cw in zip(col_headers, col_x, col_widths):
+        sh = _rect(slide, cx, header_y, cw, row_h)
+        _text_frame(sh, [(hdr, 11, True, WHITE, PP_ALIGN.LEFT)], MSO_ANCHOR.MIDDLE)
+
+    for r_idx, row in enumerate(delivered_rows[:8]):
+        y = header_y + row_h * (r_idx + 1)
+        bg = WHITE if r_idx % 2 == 0 else ROW_ALT
+        _rect(slide, Inches(0.35), y, W - Inches(0.7), row_h, fill=bg)
+        row_vals = [
+            (row.get("Title") or "")[:70],
+            (row.get("ProcessStage") or "")[:28],
+            (row.get("SubOrdinateFunction") or "")[:28],
+            (row.get("EvidenceSummary") or "")[:80],
+        ]
+        for val, cx, cw in zip(row_vals, col_x, col_widths):
+            sh = _rect(slide, cx, y, cw, row_h)
+            _text_frame(sh, [(val, 10, False, DARK, PP_ALIGN.LEFT)], MSO_ANCHOR.MIDDLE)
+
+    # Speaker notes
+    notes_slide = slide.notes_slide
+    notes_slide.notes_text_frame.text = (
+        f"Live Wins — {len(delivered_rows)} opportunity/ies confirmed as Delivered / Active Today "
+        f"in the {current_date} transcript.\n\n"
+        + "\n".join(
+            f"- {r.get('Title', '')}: {r.get('EvidenceSummary', '')[:120]}"
+            for r in delivered_rows[:8]
+        )
+    )
+
 
 def _slide_next_steps(prs: Presentation, near_term_asks: list[str]) -> None:
     """Last slide – Demo Intake / KB Strategy / Next Steps."""
@@ -581,6 +634,12 @@ def build_meeting_presentation(
     _slide_title(prs, next_session, next_date)
     _slide_confidential(prs, slide_num=2)
     _slide_agenda(prs, agenda_items, next_session)
+
+    # Live Wins: only render if any delivered rows exist this week
+    delivered = [r for r in last_rows if r.get("MaturitySignal") == "Delivered / Active Today"]
+    if delivered:
+        _slide_live_wins(prs, delivered, current_date.isoformat())
+
     _slide_aligned_on(prs, aligned_on, current_date.isoformat())
     _slide_demo_backlog(prs, demos)
     _slide_demo(prs, next_session)

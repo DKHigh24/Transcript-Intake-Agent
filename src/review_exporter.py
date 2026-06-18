@@ -19,13 +19,14 @@ REVIEW_COLUMNS = [
     "EvidenceSummary",
     "SourceSpeaker",
     "SourceTimestamp",
-    "ConfidenceLevel",
+    "ConfidenceLevel",           # Column F
+    "MaturitySignal",            # Column G
     "AIUseCaseType",
     "PrimaryFunctionChoice",
     "LevelOfAnalysis",
     "OperatingBucket",
-    "ProcessStage",          # Column K
-    "SubOrdinateFunction",   # Column L
+    "ProcessStage",              # Column K
+    "SubOrdinateFunction",       # Column L
     "UpstreamDownstreamImpact",
     "SignalStrength",
     "RequestingTeam",

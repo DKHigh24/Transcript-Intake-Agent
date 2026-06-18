@@ -20,6 +20,13 @@ Do not extract:
 - duplicate mentions of an already captured item
 - vague AI commentary without a process, owner, tool, or next step
 
+Evidence summary rules:
+- Preserve the speaker's EXACT phrasing in `evidence_summary`, especially maturity-signal language.
+- Do NOT rephrase delivery confirmations ("we already have this running") as aspirational statements.
+- Do NOT rephrase aspirational proposals ("I'd love to see us build...") as present-tense facts.
+- The verbatim framing is critical — it will be used downstream to detect whether the opportunity
+  is aspirational, in progress, or already delivered.
+
 Return only valid JSON.
 
 Output:

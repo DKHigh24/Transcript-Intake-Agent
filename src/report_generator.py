@@ -38,6 +38,12 @@ SIGNAL_COLORS = {
     "Repeated within One Team":      "#E8A838",
     "Isolated Example":              "#bbb",
 }
+MATURITY_COLORS = {
+    "Delivered / Active Today": "#059669",   # green
+    "In Progress / Piloting":   "#2563EB",   # blue
+    "Aspirational":             "#D97706",   # amber
+    "Unknown":                  "#6B7280",   # gray
+}
 LEVEL_COLORS = {
     "Level 0 - Signal Capture":          "#e0e0e0",
     "Level 1 - Categorization":          "#b0c4de",
@@ -82,6 +88,7 @@ def _build_cards_html(rows: list[dict]) -> str:
         next_step = r.get("NextStep", "")
         owner = r.get("SuggestedBusinessOwnerText", "") or r.get("SuggestedSMEChampionText", "")
         confidence = r.get("ConfidenceLevel", "")
+        maturity = r.get("MaturitySignal", "") or "Unknown"
         tool = r.get("PrimaryTool", "")
         stage = r.get("ProcessStage", "")
         sub_fn = r.get("SubOrdinateFunction", "")
@@ -92,6 +99,7 @@ def _build_cards_html(rows: list[dict]) -> str:
         bucket_color = _color_for(BUCKET_COLORS, bucket)
         type_color = _color_for(TYPE_COLORS, use_type)
         signal_color = _color_for(SIGNAL_COLORS, signal)
+        maturity_color = MATURITY_COLORS.get(maturity, "#6B7280")
 
         conf_class = {"High": "conf-high", "Medium": "conf-med", "Low": "conf-low"}.get(confidence, "conf-med")
 
@@ -102,6 +110,7 @@ def _build_cards_html(rows: list[dict]) -> str:
             <div class="card-badges">
               <span class="badge" style="background:{type_color}">{use_type}</span>
               <span class="badge" style="background:{signal_color}">{signal}</span>
+              <span class="badge" style="background:{maturity_color};color:#fff">{maturity}</span>
               <span class="badge {conf_class}">Confidence: {confidence}</span>
             </div>
           </div>
