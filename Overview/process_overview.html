@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Transcript Intake Agent — Process Overview</title>
+<style>
+  :root {
+    --blue:   #4A6FA5;
+    --teal:   #47A8BD;
+    --green:  #5DB7A0;
+    --amber:  #E8A838;
+    --red:    #C0604D;
+    --dark:   #1E2A3A;
+    --mid:    #3A4B5C;
+    --light:  #F4F7FB;
+    --border: #DDE3ED;
+    --text:   #2C3E50;
+    --muted:  #6B7A8D;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--light); color: var(--text); line-height: 1.55; }
+
+  .header {
+    background: linear-gradient(135deg, var(--dark) 0%, var(--mid) 100%);
+    color: #fff; padding: 36px 40px 30px;
+  }
+  .header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; }
+  .header .sub { font-size: 14px; color: rgba(255,255,255,0.7); margin-top: 8px; }
+  .header .meta { font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 12px; }
+
+  .nav { background:#fff; border-bottom:2px solid var(--border); display:flex; flex-wrap:wrap; padding: 0 40px; position: sticky; top: 0; z-index: 10; }
+  .nav a {
+    padding: 14px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+    color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -2px;
+    text-decoration: none; transition: color .15s, border-color .15s;
+  }
+  .nav a:hover { color: var(--blue); border-bottom-color: var(--blue); }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; }
+  section { margin-bottom: 40px; scroll-margin-top: 60px; }
+  h2 { font-size: 19px; color: var(--dark); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 15px; color: var(--mid); margin: 20px 0 10px; }
+  p  { font-size: 14px; margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 22px; }
+  li { font-size: 14px; margin-bottom: 7px; }
+  code {
+    background: #eef2f8; color: #324; padding: 2px 6px; border-radius: 4px;
+    font-family: 'Cascadia Code', 'Consolas', monospace; font-size: 12.5px;
+  }
+  pre {
+    background: var(--dark); color: #e7edf5; padding: 16px 18px; border-radius: 10px;
+    overflow-x: auto; margin: 0 0 16px; font-size: 12.5px; line-height: 1.6;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+  .panel { background:#fff; border:1px solid var(--border); border-radius:12px; padding:24px 26px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  .callout { border-left: 5px solid var(--amber); background: #fff8ec; padding: 14px 18px; border-radius: 8px; margin: 0 0 16px; font-size: 13.5px; }
+  .callout.warn { border-left-color: var(--red); background: #fdeeeb; }
+  .callout.ok   { border-left-color: var(--green); background: #edf8f4; }
+  .legend { display:flex; flex-wrap:wrap; gap:18px; margin: 8px 0 20px; font-size:12.5px; }
+  .legend .item { display:flex; align-items:center; gap:8px; }
+  .swatch { width:16px; height:16px; border-radius:4px; display:inline-block; }
+
+  table { width:100%; border-collapse:collapse; font-size:13px; background:#fff; border-radius:10px; overflow:hidden; }
+  thead tr { background: var(--dark); color:#fff; }
+  th { padding:11px 12px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+  td { padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr:nth-child(even) td { background:#f7f9fc; }
+
+  /* Flowchart */
+  .flow-scroll { overflow-x:auto; background:#fff; border:1px solid var(--border); border-radius:12px; padding:10px; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+  svg { display:block; margin:0 auto; min-width:920px; }
+  .fc-label { font: 600 12.5px 'Segoe UI', sans-serif; fill:#fff; }
+  .fc-sub   { font: 400 10.5px 'Segoe UI', sans-serif; fill: rgba(255,255,255,.8); }
+  .fc-note  { font: 600 11px 'Segoe UI', sans-serif; fill: var(--mid); }
+  .fc-edge  { stroke: var(--mid); stroke-width: 2; fill:none; }
+  .fc-edge-dash { stroke: var(--muted); stroke-width: 2; fill:none; stroke-dasharray:5 4; }
+  .fc-gate  { font: 700 11px 'Segoe UI', sans-serif; fill: var(--dark); }
+
+  .footer { text-align:center; padding:24px; font-size:11px; color:var(--muted); border-top:1px solid var(--border); background:#fff; }
+  .pill { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:600; color:#fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>⚡ AI Transcript Intake Agent — Process Overview</h1>
+  <div class="sub">How weekly meeting transcripts become reviewable AI-opportunity reports and SharePoint-ready drafts</div>
+  <div class="meta">Electronics AI Working Group · Draft outputs — human review required before any SharePoint push</div>
+</div>
+
+<div class="nav">
+  <a href="#flow">🔄 Flowchart</a>
+  <a href="#stages">🧩 Stage Detail</a>
+  <a href="#weekly">📅 Weekly Operation</a>
+  <a href="#auto">🤖 Automatic Trigger</a>
+  <a href="#monthly">🗓 Monthly Rollup</a>
+  <a href="#outputs">📂 Outputs</a>
+  <a href="#maintain">🛠 Keeping It Running</a>
+  <a href="#trouble">🚑 Troubleshooting</a>
+</div>
+
+<div class="wrap">
+
+  <!-- ───────────────────────── Flowchart ───────────────────────── -->
+  <section id="flow">
+    <h2>🔄 End-to-End Flowchart</h2>
+    <div class="legend">
+      <div class="item"><span class="swatch" style="background:var(--blue)"></span> Deterministic Python (no AI)</div>
+      <div class="item"><span class="swatch" style="background:var(--amber)"></span> AI / model step</div>
+      <div class="item"><span class="swatch" style="background:var(--teal)"></span> Trend &amp; reporting</div>
+      <div class="item"><span class="swatch" style="background:var(--green)"></span> Human / SharePoint</div>
+      <div class="item"><span class="swatch" style="background:var(--mid)"></span> Trigger / control</div>
+    </div>
+    <div class="flow-scroll">
+      <svg viewBox="0 0 960 1180" width="960" height="1180" role="img" aria-label="Process flowchart">
+        <defs>
+          <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L8,3 L0,6 z" fill="#3A4B5C"></path>
+          </marker>
+          <marker id="arrowd" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L8,3 L0,6 z" fill="#6B7A8D"></path>
+          </marker>
+        </defs>
+
+        <!-- helper boxes via repeated rect+text -->
+        <!-- Trigger -->
+        <rect x="330" y="20" width="300" height="58" rx="10" fill="#3A4B5C"></rect>
+        <text x="480" y="44" text-anchor="middle" class="fc-label">Weekly transcript uploaded (.docx)</text>
+        <text x="480" y="62" text-anchor="middle" class="fc-sub">input/transcripts/ — filename carries meeting date</text>
+
+        <!-- watcher (control, dashed off to side) -->
+        <rect x="690" y="20" width="250" height="58" rx="10" fill="#3A4B5C"></rect>
+        <text x="815" y="44" text-anchor="middle" class="fc-label">watch_transcripts.py</text>
+        <text x="815" y="62" text-anchor="middle" class="fc-sub">polls folder → auto-runs weekly</text>
+        <path d="M690,49 L634,49" class="fc-edge-dash" marker-end="url(#arrowd)"></path>
+
+        <path d="M480,78 L480,104" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 1 read -->
+        <rect x="330" y="106" width="300" height="52" rx="10" fill="#4A6FA5"></rect>
+        <text x="480" y="128" text-anchor="middle" class="fc-label">1 · Read DOCX</text>
+        <text x="480" y="146" text-anchor="middle" class="fc-sub">transcript_reader.py</text>
+        <path d="M480,158 L480,182" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 2 clean -->
+        <rect x="330" y="184" width="300" height="52" rx="10" fill="#4A6FA5"></rect>
+        <text x="480" y="206" text-anchor="middle" class="fc-label">2 · Clean &amp; normalize</text>
+        <text x="480" y="224" text-anchor="middle" class="fc-sub">transcript_cleaner.py — speaker/timestamp</text>
+        <path d="M480,236 L480,260" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 3 chunk -->
+        <rect x="330" y="262" width="300" height="52" rx="10" fill="#4A6FA5"></rect>
+        <text x="480" y="284" text-anchor="middle" class="fc-label">3 · Chunk + keyword filter</text>
+        <text x="480" y="302" text-anchor="middle" class="fc-sub">transcript_chunker.py → chunks.json</text>
+        <path d="M480,314 L480,338" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 4 extract (AI) -->
+        <rect x="330" y="340" width="300" height="52" rx="10" fill="#E8A838"></rect>
+        <text x="480" y="362" text-anchor="middle" class="fc-label">4 · Extract candidates 🧠</text>
+        <text x="480" y="380" text-anchor="middle" class="fc-sub">candidate_detector.py → candidates.json</text>
+        <path d="M480,392 L480,416" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 5 classify (AI) -->
+        <rect x="330" y="418" width="300" height="52" rx="10" fill="#E8A838"></rect>
+        <text x="480" y="440" text-anchor="middle" class="fc-label">5 · Classify to MVP schema 🧠</text>
+        <text x="480" y="458" text-anchor="middle" class="fc-sub">classifier.py</text>
+        <path d="M480,470 L480,494" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 5b validate -->
+        <rect x="330" y="496" width="300" height="52" rx="10" fill="#4A6FA5"></rect>
+        <text x="480" y="518" text-anchor="middle" class="fc-label">5b · Validate against choices</text>
+        <text x="480" y="536" text-anchor="middle" class="fc-sub">validators.py → classified_rows.json</text>
+        <path d="M480,548 L480,572" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 6/7/8 fan out -->
+        <rect x="330" y="574" width="300" height="46" rx="10" fill="#4A6FA5"></rect>
+        <text x="480" y="602" text-anchor="middle" class="fc-label">6 · Export review_rows.xlsx</text>
+
+        <rect x="40" y="574" width="250" height="46" rx="10" fill="#4A6FA5"></rect>
+        <text x="165" y="602" text-anchor="middle" class="fc-label">7 · Build sharepoint_payload.json</text>
+
+        <rect x="670" y="574" width="250" height="46" rx="10" fill="#47A8BD"></rect>
+        <text x="795" y="595" text-anchor="middle" class="fc-label">8 · ai_opportunity_report.html</text>
+        <text x="795" y="611" text-anchor="middle" class="fc-sub">report_generator.build_report_html()</text>
+
+        <path d="M480,572 L480,560 L165,560 L165,572" class="fc-edge" marker-end="url(#arrow)"></path>
+        <path d="M480,572 L480,560 L795,560 L795,572" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- down to weekly branch -->
+        <path d="M480,620 L480,648" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 9 archive + ingest -->
+        <rect x="300" y="650" width="360" height="56" rx="10" fill="#47A8BD"></rect>
+        <text x="480" y="673" text-anchor="middle" class="fc-label">9–10 · Archive week + ingest into history</text>
+        <text x="480" y="691" text-anchor="middle" class="fc-sub">history_store.py (idempotent by meeting date)</text>
+        <path d="M480,706 L480,730" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 11 weekly report -->
+        <rect x="300" y="732" width="360" height="56" rx="10" fill="#47A8BD"></rect>
+        <text x="480" y="755" text-anchor="middle" class="fc-label">11 · Weekly report (4 tabs)</text>
+        <text x="480" y="773" text-anchor="middle" class="fc-sub">Cards · Analytics · Table · 📈 Trends — trend_reporter.py</text>
+        <path d="M480,788 L480,812" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- 12 monthly refresh -->
+        <rect x="300" y="814" width="360" height="56" rx="10" fill="#47A8BD"></rect>
+        <text x="480" y="837" text-anchor="middle" class="fc-label">Refresh monthly rollup</text>
+        <text x="480" y="855" text-anchor="middle" class="fc-sub">reports/monthly_YYYY-MM.html</text>
+        <path d="M480,870 L480,894" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- human review gate -->
+        <polygon points="480,896 700,946 480,996 260,946" fill="#5DB7A0"></polygon>
+        <text x="480" y="942" text-anchor="middle" class="fc-label">Human review</text>
+        <text x="480" y="960" text-anchor="middle" class="fc-sub">default status: Needs Review</text>
+
+        <!-- approve -->
+        <path d="M480,996 L480,1020" class="fc-edge" marker-end="url(#arrow)"></path>
+        <text x="500" y="1014" class="fc-gate">approved?</text>
+
+        <!-- push -->
+        <rect x="330" y="1022" width="300" height="56" rx="10" fill="#5DB7A0"></rect>
+        <text x="480" y="1045" text-anchor="middle" class="fc-label">Push to Power Automate (opt-in)</text>
+        <text x="480" y="1063" text-anchor="middle" class="fc-sub">power_automate_client.py — only when enabled</text>
+        <path d="M480,1078 L480,1102" class="fc-edge" marker-end="url(#arrow)"></path>
+
+        <!-- sharepoint -->
+        <rect x="330" y="1104" width="300" height="50" rx="10" fill="#1E2A3A"></rect>
+        <text x="480" y="1134" text-anchor="middle" class="fc-label">SharePoint — AI Acceleration list</text>
+
+        <!-- reject loopback note -->
+        <path d="M700,946 L860,946 L860,602 L630,602" class="fc-edge-dash" marker-end="url(#arrowd)"></path>
+        <text x="858" y="780" text-anchor="middle" class="fc-note" transform="rotate(90 858 780)">edits → re-export workbook</text>
+      </svg>
+    </div>
+    <p class="callout"><strong>Two AI steps only.</strong> Steps 4 and 5 (amber) are the only places the model is used — extraction and classification. Everything else is deterministic Python. Transcripts are never sent to the model wholesale; only keyword-filtered chunks are.</p>
+  </section>
+
+  <!-- ───────────────────────── Stage detail ───────────────────────── -->
+  <section id="stages">
+    <h2>🧩 Stage Detail</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>#</th><th>Stage</th><th>Module</th><th>Input → Output</th><th>AI?</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Read transcript</td><td><code>transcript_reader.py</code></td><td>.docx → paragraphs</td><td>No</td></tr>
+          <tr><td>2</td><td>Clean &amp; normalize</td><td><code>transcript_cleaner.py</code></td><td>paragraphs → speaker turns</td><td>No</td></tr>
+          <tr><td>3</td><td>Chunk + keyword filter</td><td><code>transcript_chunker.py</code></td><td>turns → <code>chunks.json</code></td><td>No</td></tr>
+          <tr><td>4</td><td>Extract candidates</td><td><code>candidate_detector.py</code></td><td>chunks → <code>candidates.json</code></td><td><span class="pill" style="background:var(--amber)">Yes</span></td></tr>
+          <tr><td>5</td><td>Classify to schema</td><td><code>classifier.py</code></td><td>candidates → rows</td><td><span class="pill" style="background:var(--amber)">Yes</span></td></tr>
+          <tr><td>5b</td><td>Validate choices</td><td><code>validators.py</code></td><td>rows → <code>classified_rows.json</code></td><td>No</td></tr>
+          <tr><td>6</td><td>Review workbook</td><td><code>review_exporter.py</code></td><td>rows → <code>review_rows.xlsx</code></td><td>No</td></tr>
+          <tr><td>7</td><td>SharePoint payload</td><td><code>power_automate_client.py</code></td><td>rows → <code>sharepoint_payload.json</code></td><td>No</td></tr>
+          <tr><td>8</td><td>HTML report</td><td><code>report_generator.py</code></td><td>rows → <code>ai_opportunity_report.html</code></td><td>No</td></tr>
+          <tr><td>9–10</td><td>Archive + ingest history</td><td><code>history_store.py</code></td><td>rows → <code>opportunities.json</code></td><td>No</td></tr>
+          <tr><td>11</td><td>Weekly report</td><td><code>trend_reporter.py</code></td><td>history → <code>weekly_report.html</code></td><td>No</td></tr>
+          <tr><td>12</td><td>Push (opt-in)</td><td><code>power_automate_client.py</code></td><td>payload → SharePoint</td><td>No</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── Weekly operation ───────────────────────── -->
+  <section id="weekly">
+    <h2>📅 Weekly Operation (the normal cadence)</h2>
+    <p>Each week, drop the new meeting transcript into <code>input/transcripts/</code> and run the weekly pipeline. The filename must contain the meeting date (e.g. <code>Electronics AI - Working Session - 6_17_2026.docx</code>).</p>
+    <pre><code># 0) one-time per shell on Windows (avoids a Unicode console error)
+$env:PYTHONIOENCODING = "utf-8"
+
+# 1) run the full weekly pipeline on the new transcript
+python src/main.py --input "input/transcripts/Electronics AI - Working Session - 6_17_2026.docx" --mode weekly
+
+# optional: override the meeting date if it isn't in the filename
+python src/main.py --input "<file>.docx" --mode weekly --date 2026-06-17</code></pre>
+    <p>The <code>weekly</code> mode runs all 12 steps: read → clean → chunk → extract → classify → validate → workbook → payload → HTML report → archive → ingest history → weekly report → refresh monthly rollup.</p>
+    <div class="callout ok"><strong>Back-dated transcripts are handled automatically.</strong> If the transcript's date is earlier than any week already in history, <code>--mode weekly</code> detects this and rebuilds <em>all</em> weekly and monthly reports so every longitudinal view stays accurate. You just run the same command — no special flag needed.</div>
+    <div class="callout ok"><strong>Idempotent.</strong> Re-running the same meeting date replaces that date's rows in history — it never double-counts. Safe to re-run after fixing a transcript.</div>
+    <div class="callout warn"><strong>Requires an OpenAI key.</strong> Steps 4–5 call the model, so set <code>OPENAI_API_KEY</code> in <code>.env</code>. Without a key, use <code>--mock</code> to exercise the wiring, or hand-classify rows.</div>
+  </section>
+
+  <!-- ───────────────────────── Automatic trigger ───────────────────────── -->
+  <section id="auto">
+    <h2>🤖 Automatic Trigger (folder watcher)</h2>
+    <p>Instead of running the pipeline by hand, run the watcher. It polls <code>input/transcripts/</code> and auto-runs <code>--mode weekly</code> on any new or changed <code>.docx</code> once its upload has finished.</p>
+    <pre><code>$env:PYTHONIOENCODING = "utf-8"
+
+# one-time: baseline the files already processed so they are NOT re-run
+python src/watch_transcripts.py --mark-processed
+
+# then start watching (Ctrl+C to stop)
+python src/watch_transcripts.py
+
+# useful variants
+python src/watch_transcripts.py --once         # process current backlog, then exit
+python src/watch_transcripts.py --interval 10  # poll every 10s (default 5)
+python src/watch_transcripts.py --print-only   # show what would run, run nothing</code></pre>
+    <ul>
+      <li><strong>Safe for in-progress uploads</strong> — a file is processed only after its size + modified time stay unchanged across one poll.</li>
+      <li><strong>Idempotent</strong> — processed files are recorded in <code>output/history/processed_files.json</code> (keyed by name + size + mtime).</li>
+      <li>Each new transcript triggers <code>main.py --mode weekly</code>, regenerating the weekly and monthly reports automatically.</li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── Monthly rollup ───────────────────────── -->
+  <section id="monthly">
+    <h2>🗓 Monthly Rollup</h2>
+    <p>The monthly report is refreshed automatically at the end of every weekly run. To (re)build it on demand from accumulated history:</p>
+    <pre><code>$env:PYTHONIOENCODING = "utf-8"
+
+# most recent month present in history
+python src/main.py --mode monthly
+
+# a specific month
+python src/main.py --mode monthly --month 2026-06</code></pre>
+    <p>It writes <code>output/reports/monthly_&lt;YYYY-MM&gt;.html</code> with per-week totals, bucket-by-week stacking, signal/level momentum, and a full table of every opportunity active that month.</p>
+  </section>
+
+  <!-- ───────────────────────── Outputs ───────────────────────── -->
+  <section id="outputs">
+    <h2>📂 Output Layout</h2>
+    <div class="panel">
+      <pre><code>output/
+├── classified_rows.json              # current run's classified rows
+├── review_rows.xlsx                  # current run's review workbook
+├── sharepoint_payload.json           # current run's SharePoint draft payload
+├── ai_opportunity_report.html        # current run's single-transcript report
+├── weeks/&lt;YYYY-MM-DD&gt;/                # per-week archive
+│   ├── classified_rows.json
+│   ├── review_rows.xlsx
+│   ├── sharepoint_payload.json
+│   └── weekly_report.html            # 4-tab weekly report (Cards/Analytics/Table/Trends)
+├── history/
+│   ├── opportunities.json            # cumulative cross-week history
+│   └── processed_files.json          # watcher manifest
+└── reports/
+    └── monthly_&lt;YYYY-MM&gt;.html         # rolling monthly rollup</code></pre>
+    </div>
+    <p class="callout"><strong>Everything in <code>output/</code> is gitignored.</strong> The reports are self-contained HTML (Chart.js via CDN) — open them directly in a browser, no server needed.</p>
+  </section>
+
+  <!-- ───────────────────────── Keeping it running ───────────────────────── -->
+  <section id="maintain">
+    <h2>🛠 Keeping It Running</h2>
+
+    <h3>Weekly checklist</h3>
+    <ol>
+      <li>Save the new transcript to <code>input/transcripts/</code> with the meeting date in the filename.</li>
+      <li>Confirm <code>OPENAI_API_KEY</code> is set in <code>.env</code>.</li>
+      <li>Run <code>--mode weekly</code> (or let the watcher do it).</li>
+      <li>Open <code>output/weeks/&lt;date&gt;/weekly_report.html</code> and review every card — they default to <em>Needs Review</em>.</li>
+      <li>Correct anything wrong in <code>review_rows.xlsx</code>; only then consider a push.</li>
+      <li>Push to SharePoint only when explicitly approved (<code>--mode push</code>, with the Power Automate URL configured).</li>
+    </ol>
+
+    <h3>Core rules (do not break)</h3>
+    <ul>
+      <li>Never send full transcripts to the model — only keyword-filtered chunks.</li>
+      <li>All model output is <strong>draft-only</strong>; rows default to <em>Needs Review</em>.</li>
+      <li>Human review is required before any SharePoint push.</li>
+      <li>Never commit secrets; never hard-code the Power Automate URL (read it from config/env).</li>
+      <li>SharePoint internal names come from <code>config/sharepoint_field_mapping.json</code>; allowed values from <code>config/choice_values.json</code>; row shape from <code>config/mvp_output_schema.json</code>.</li>
+    </ul>
+
+    <h3>Report format standard</h3>
+    <p>The weekly HTML must keep the original <code>ai_opportunity_report.html</code> layout and behavior — KPI header plus the 📋 Cards / 📊 Analytics / 🗂 Full Table tabs — with longitudinal insight added only as the 4th 📈 Trends tab. The canonical layout lives in <code>report_generator.build_report_html()</code> (single source of truth). See <code>skills/weekly_report_format.md</code> before changing any report code.</p>
+
+    <h3>Adding new weeks over time</h3>
+    <ul>
+      <li>Just keep dropping transcripts in and running weekly — history accumulates automatically.</li>
+      <li>Recurrence across weeks is detected by deterministic fuzzy title matching (no AI), so trends stay reproducible and token-free.</li>
+      <li>To rebuild a corrupted history, re-run <code>--mode weekly</code> for each transcript in chronological order.</li>
+      <li>To manually force a full report regeneration from current history (e.g. after edits): <code>python src/main.py --mode rebuild</code></li>
+    </ul>
+  </section>
+
+  <!-- ───────────────────────── Troubleshooting ───────────────────────── -->
+  <section id="trouble">
+    <h2>🚑 Troubleshooting</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Symptom</th><th>Cause / Fix</th></tr></thead>
+        <tbody>
+          <tr><td><code>UnicodeEncodeError</code> on <code>→</code> in the console</td><td>Windows cp1252 console. Set <code>$env:PYTHONIOENCODING = "utf-8"</code> first. Generated HTML is unaffected.</td></tr>
+          <tr><td>Extraction/classification fails or is empty</td><td>Missing/invalid <code>OPENAI_API_KEY</code> in <code>.env</code>. Use <code>--mock</code> to test wiring without the model.</td></tr>
+          <tr><td>Wrong meeting date / week label</td><td>Filename date couldn't be parsed. Pass <code>--date YYYY-MM-DD</code> explicitly.</td></tr>
+          <tr><td>Watcher keeps re-saying "WOULD process"</td><td><code>--print-only</code> never writes the manifest by design. Drop the flag to actually process and record.</td></tr>
+          <tr><td>Duplicate opportunity across weeks not merging</td><td>Titles too dissimilar for the fuzzy matcher. Align titles in the source rows; re-run the week.</td></tr>
+          <tr><td>An opportunity got double-counted</td><td>Re-run <code>--mode weekly</code> for that meeting date — ingest is idempotent and will replace it.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="footer">
+  Electronics AI Working Group · AI Transcript Intake Agent · Process Overview · Draft — all rows require human review before SharePoint promotion
+</div>
+
+</body>
+</html>

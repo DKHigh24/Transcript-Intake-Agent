@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Transcript Intake Agent — Operating Manual</title>
+<style>
+  :root {
+    --blue: #2563eb; --blue-light: #dbeafe; --blue-dark: #1e40af;
+    --amber: #d97706; --amber-light: #fef3c7;
+    --green: #059669; --green-light: #d1fae5;
+    --red: #dc2626; --red-light: #fee2e2;
+    --gray: #6b7280; --gray-light: #f9fafb; --gray-border: #e5e7eb;
+    --dark: #111827; --mid: #374151;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--dark); background: #fff; line-height: 1.6; }
+
+  /* ── NAV ── */
+  nav { position: sticky; top: 0; z-index: 100; background: var(--blue-dark); color: #fff; display: flex; align-items: center; gap: 0; padding: 0 24px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+  nav .brand { font-weight: 700; font-size: 15px; padding: 14px 20px 14px 0; border-right: 1px solid rgba(255,255,255,.2); margin-right: 12px; white-space: nowrap; }
+  nav a { color: rgba(255,255,255,.85); text-decoration: none; font-size: 13px; padding: 14px 12px; white-space: nowrap; transition: color .15s; }
+  nav a:hover { color: #fff; }
+
+  /* ── LAYOUT ── */
+  .page { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+  h1 { font-size: 28px; font-weight: 800; color: var(--blue-dark); margin-bottom: 6px; }
+  .subtitle { color: var(--gray); font-size: 14px; margin-bottom: 36px; }
+  h2 { font-size: 20px; font-weight: 700; color: var(--blue-dark); margin: 48px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--blue-light); }
+  h3 { font-size: 15px; font-weight: 700; color: var(--mid); margin: 24px 0 8px; }
+  p { margin-bottom: 12px; font-size: 14px; }
+  ul, ol { padding-left: 20px; font-size: 14px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; }
+  strong { color: var(--dark); }
+
+  /* ── CODE BLOCKS ── */
+  pre { background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 16px 20px; overflow-x: auto; font-size: 13px; margin: 12px 0 16px; line-height: 1.5; }
+  code { font-family: 'Cascadia Code', 'Consolas', monospace; }
+  pre .comment { color: #94a3b8; }
+  pre .cmd { color: #7dd3fc; }
+  pre .str { color: #86efac; }
+  pre .var { color: #fde68a; }
+  .inline-code { background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 4px; padding: 1px 6px; font-family: monospace; font-size: 12px; color: #0f172a; }
+
+  /* ── CALLOUT BOXES ── */
+  .callout { border-radius: 8px; padding: 14px 18px; margin: 16px 0; font-size: 13.5px; display: flex; gap: 12px; align-items: flex-start; }
+  .callout .icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .callout.info { background: var(--blue-light); border-left: 4px solid var(--blue); }
+  .callout.tip  { background: var(--green-light); border-left: 4px solid var(--green); }
+  .callout.warn { background: var(--amber-light); border-left: 4px solid var(--amber); }
+  .callout.danger { background: var(--red-light); border-left: 4px solid var(--red); }
+
+  /* ── TABLES ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0 20px; }
+  th { background: var(--blue-dark); color: #fff; padding: 9px 14px; text-align: left; font-weight: 600; }
+  td { padding: 8px 14px; border-bottom: 1px solid var(--gray-border); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--gray-light); }
+
+  /* ── STEP CARDS ── */
+  .steps { display: flex; flex-direction: column; gap: 12px; margin: 16px 0; }
+  .step { display: flex; gap: 16px; background: var(--gray-light); border: 1px solid var(--gray-border); border-radius: 8px; padding: 16px; }
+  .step-num { background: var(--blue-dark); color: #fff; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+  .step-body h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; color: var(--blue-dark); }
+  .step-body p { margin: 0; font-size: 13px; }
+
+  /* ── BADGE ── */
+  .badge { display: inline-block; border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; margin-left: 6px; vertical-align: middle; }
+  .badge.auto { background: var(--green-light); color: var(--green); }
+  .badge.manual { background: var(--amber-light); color: var(--amber); }
+  .badge.required { background: var(--red-light); color: var(--red); }
+
+  /* ── SECTION DIVIDER ── */
+  .section-anchor { display: block; height: 0; visibility: hidden; }
+  hr.divider { border: none; border-top: 1px solid var(--gray-border); margin: 32px 0; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">📋 Transcript Intake — Operating Manual</span>
+  <a href="#appendix-plain-english">📖 Plain English</a>
+  <a href="#prereqs">Prerequisites</a>
+  <a href="#standard-run">Standard Run</a>
+  <a href="#backdate">Back-Dated Files</a>
+<a href="#copilot-sdk">Copilot SDK</a>
+<a href="#no-key">Manual Fallback</a>
+<a href="#watcher">Auto-Watcher</a>
+<a href="#outputs">Outputs</a>
+<a href="#rebuild">Rebuild</a>
+<a href="#troubleshoot">Troubleshoot</a>
+<a href="#openspec">OpenSpec</a>
+
+</nav>
+
+<div class="page">
+
+  <h1>Transcript Intake Agent</h1>
+  <p class="subtitle">Electronics AI Working Group &nbsp;·&nbsp; Operating Manual &nbsp;·&nbsp; Last updated June 2026</p>
+
+  <!-- ═══════════════════════════════════ OVERVIEW ═══════════════════════════════════ -->
+  <span id="overview" class="section-anchor"></span>
+  <h2>Overview</h2>
+  <p>This system ingests DOCX meeting transcripts from the Electronics AI Working Group, extracts AI opportunities, classifies them against the AI Acceleration SharePoint framework, and produces weekly and monthly HTML reports for human review.</p>
+
+  <table>
+    <tr><th>What goes in</th><th>What comes out</th></tr>
+    <tr><td>DOCX transcript file dropped in <span class="inline-code">input/transcripts/</span></td><td>Weekly HTML report (4-tab layout: Cards, Analytics, Full Table, Trends)</td></tr>
+    <tr><td>Session date (auto-detected from filename)</td><td>Monthly HTML summary for the same calendar month</td></tr>
+    <tr><td>GitHub Copilot subscription (default) <em>or</em> OpenAI API key (optional override)</td><td>Excel workbook for human review (<span class="inline-code">review_rows.xlsx</span>)</td></tr>
+    <tr><td></td><td>SharePoint payload JSON (draft, human-gated)</td></tr>
+  </table>
+
+  <div class="callout info">
+    <span class="icon">💡</span>
+    <div>All outputs are <strong>draft-only</strong>. Nothing is pushed to SharePoint automatically. Human review is always required before any SharePoint submission.</div>
+  </div>
+
+  <!-- ═══════════════════════════════════ PREREQUISITES ═══════════════════════════════════ -->
+  <span id="prereqs" class="section-anchor"></span>
+  <h2>1 — Prerequisites</h2>
+
+  <h3>One-time setup (already done if you cloned this repo)</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Python virtual environment</h4>
+        <p>The <span class="inline-code">.venv</span> folder at the repo root contains all dependencies. Do <strong>not</strong> use the system Python.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>AI backend — GitHub Copilot (default) <span class="badge auto">No extra key needed</span></h4>
+        <p>The pipeline uses your <strong>existing GitHub Copilot subscription</strong> by default — the same one powering this VS Code assistant. No setup required. As long as you are logged into Copilot CLI, it works automatically.</p>
+        <p>If your org ever provides an OpenAI API key, you can optionally set it and the pipeline will use that instead:</p>
+        <pre><code><span class="comment"># Optional — only if you have an org-issued OpenAI key</span>
+<span class="cmd">[System.Environment]</span>::SetEnvironmentVariable(<span class="str">"OPENAI_API_KEY"</span>, <span class="str">"sk-..."</span>, <span class="str">"User"</span>)</code></pre>
+        <p>To verify which backend will be used before running:</p>
+        <pre><code>.\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0,'src'); from llm_client import llm_backend_name; print(llm_backend_name())"</code></pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>File naming convention</h4>
+        <p>Name your transcript file so the date is recognizable in the filename. The pipeline auto-detects it.</p>
+        <p>✅ <span class="inline-code">Electronics AI - Working Session - 6_17_2026.docx</span><br/>
+           ✅ <span class="inline-code">Electronics AI - Working Session - 6-17-2026.docx</span><br/>
+           ⚠️ If no date is found, today's date is used — add <span class="inline-code">--date YYYY-MM-DD</span> to override.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ STANDARD RUN ═══════════════════════════════════ -->
+  <span id="standard-run" class="section-anchor"></span>
+  <h2>2 — Standard Run (New Transcript) <span class="badge auto">Fully Automatic</span></h2>
+
+  <p>Use this every time you add a new transcript that is <strong>the most recent session</strong> (i.e., its date is later than all previously processed transcripts).</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Drop the file</h4>
+        <p>Copy your DOCX file into: <span class="inline-code">input/transcripts/</span></p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Open PowerShell and navigate to the repo</h4>
+        <pre><code><span class="cmd">cd</span> <span class="str">"c:\Users\dkh02\OneDrive - Acuity Brands, Inc\GitHub\Transcript-Intake-Agent - Iterative Analysis"</span>
+<span class="var">$env:PYTHONIOENCODING</span> = <span class="str">"utf-8"</span></code></pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Run the pipeline</h4>
+        <pre><code>.\.venv\Scripts\python.exe src\main.py <span class="str">\
+  --input "input/transcripts/Electronics AI - Working Session - 6_17_2026.docx"</span> <span class="str">\
+  --mode weekly</span></code></pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>Mark the file as processed (updates watcher manifest)</h4>
+        <pre><code>.\.venv\Scripts\python.exe src\watch_transcripts.py --mark-processed</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <h3>What the pipeline does automatically</h3>
+  <table>
+    <tr><th>Step</th><th>What happens</th><th>Output</th></tr>
+    <tr><td>1. Read</td><td>Loads the DOCX, extracts paragraphs</td><td>—</td></tr>
+    <tr><td>2. Clean</td><td>Strips formatting noise</td><td>—</td></tr>
+    <tr><td>3. Chunk</td><td>Splits into speaker turns</td><td><span class="inline-code">output/transcript_chunks.json</span></td></tr>
+    <tr><td>4. Filter</td><td>Keyword-filters AI-relevant chunks</td><td>—</td></tr>
+    <tr><td>5. Extract</td><td>AI identifies candidate opportunities (via Copilot SDK or OpenAI)</td><td>—</td></tr>
+    <tr><td>6. Classify</td><td>AI classifies into 40-field schema (via Copilot SDK or OpenAI)</td><td><span class="inline-code">output/classified_rows.json</span></td></tr>
+    <tr><td>7. Export</td><td>Writes Excel workbook</td><td><span class="inline-code">output/review_rows.xlsx</span></td></tr>
+    <tr><td>8. Payload</td><td>Builds SharePoint JSON (draft)</td><td><span class="inline-code">output/sharepoint_payload.json</span></td></tr>
+    <tr><td>9. Report</td><td>Generates HTML report</td><td><span class="inline-code">output/ai_opportunity_report.html</span></td></tr>
+    <tr><td>10. Archive</td><td>Saves week artifacts</td><td><span class="inline-code">output/weeks/YYYY-MM-DD/</span></td></tr>
+    <tr><td>11. History</td><td>Updates cumulative opportunity store</td><td><span class="inline-code">output/history/opportunities.json</span></td></tr>
+    <tr><td>12. Monthly</td><td>Regenerates the month's summary</td><td><span class="inline-code">output/reports/monthly_YYYY-MM.html</span></td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════ BACK-DATED ═══════════════════════════════════ -->
+  <span id="backdate" class="section-anchor"></span>
+  <h2>3 — Back-Dated Transcripts <span class="badge auto">Auto-Rebuild Triggered</span></h2>
+
+  <p>If you add a transcript whose date is <strong>earlier than</strong> the most recently processed transcript, the pipeline detects this automatically and rebuilds <em>all</em> weekly and monthly reports so that every report reflects the complete longitudinal data set.</p>
+
+  <div class="callout tip">
+    <span class="icon">✅</span>
+    <div>You do <strong>not</strong> need to do anything differently. Just run the same <span class="inline-code">--mode weekly</span> command. The rebuild happens automatically.</div>
+  </div>
+
+  <pre><code><span class="comment"># Example: adding a transcript from 5/14 when you already have 5/27, 6/3, 6/10</span>
+.\.venv\Scripts\python.exe src\main.py <span class="str">\
+  --input "input/transcripts/Electronics AI - Working Session - 5_14_2026.docx"</span> <span class="str">\
+  --mode weekly</span>
+
+<span class="comment"># Output will include:</span>
+<span class="comment">#   Back-dated transcript detected (2026-05-14 &lt;= existing max 2026-06-10)</span>
+<span class="comment">#   Rebuilding ALL weekly and monthly reports ...</span></code></pre>
+
+  <h3>Force a date override</h3>
+  <p>If the filename does not contain the correct date, pass it explicitly:</p>
+  <pre><code>.\.venv\Scripts\python.exe src\main.py <span class="str">\
+  --input "input/transcripts/my_transcript.docx"</span> <span class="str">\
+  --mode weekly</span> <span class="str">\
+  --date 2026-05-14</span></code></pre>
+
+  <!-- ═══════════════════════════════════ COPILOT SDK ═══════════════════════════════════ -->
+  <span id="copilot-sdk" class="section-anchor"></span>
+  <h2>4 — GitHub Copilot SDK (Default AI Backend) <span class="badge auto">Org-Friendly — No Extra Key Needed</span></h2>
+
+  <p>The pipeline uses the <strong>GitHub Copilot SDK</strong> by default for all AI work — the same authentication as your VS Code Copilot session. No separate API key is required.</p>
+
+  <div class="callout tip">
+    <span class="icon">✅</span>
+    <div><strong>This is now the default backend.</strong> If <span class="inline-code">OPENAI_API_KEY</span> is not set, the pipeline automatically uses the Copilot SDK authenticated via your logged-in GitHub account.</div>
+  </div>
+
+  <h3>How the backend is selected</h3>
+  <table>
+    <tr><th>Condition</th><th>Backend used</th><th>Model</th></tr>
+    <tr><td><span class="inline-code">OPENAI_API_KEY</span> is set</td><td>OpenAI API</td><td><span class="inline-code">gpt-4o-mini</span> (or <span class="inline-code">OPENAI_MODEL</span>)</td></tr>
+    <tr><td>No key set (default)</td><td>GitHub Copilot SDK</td><td><span class="inline-code">gpt-4o</span> (or <span class="inline-code">COPILOT_MODEL</span>)</td></tr>
+  </table>
+
+  <h3>Prerequisites for Copilot SDK path</h3>
+  <ul>
+    <li>Active GitHub Copilot subscription (Individual, Business, or Enterprise)</li>
+    <li>Logged in to Copilot CLI — if you can use this assistant, you are already logged in</li>
+    <li><span class="inline-code">github-copilot-sdk</span> installed in the venv (already included in <span class="inline-code">requirements.txt</span>)</li>
+  </ul>
+
+  <h3>Override the model</h3>
+  <pre><code><span class="comment"># Use Claude instead of gpt-4o via Copilot SDK</span>
+<span class="var">$env:COPILOT_MODEL</span> = <span class="str">"claude-sonnet-4.5"</span>
+.\.venv\Scripts\python.exe src\main.py --input "input/transcripts/YOUR_FILE.docx" --mode weekly</code></pre>
+
+  <h3>Verify which backend is active</h3>
+  <pre><code>.\.venv\Scripts\python.exe -c "
+import sys; sys.path.insert(0,'src')
+from llm_client import llm_backend_name
+print('Active backend:', llm_backend_name())
+"</code></pre>
+
+  <!-- ═══════════════════════════════════ NO API KEY ═══════════════════════════════════ -->
+  <span id="no-key" class="section-anchor"></span>
+  <h2>5 — Manual Classification (Last Resort — No Copilot, No OpenAI) <span class="badge manual">Manual Step Required</span></h2>
+
+  <p>If neither Copilot access nor an OpenAI key is available, you can provide <span class="inline-code">output/classified_rows.json</span> manually. This is a fallback only — the Copilot SDK path (§4) should work for anyone with a GitHub Copilot subscription.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Run dry-run to chunk the transcript</h4>
+        <pre><code>.\.venv\Scripts\python.exe src\main.py <span class="str">\
+  --input "input/transcripts/YOUR_FILE.docx"</span> <span class="str">\
+  --mode dry-run</span></code></pre>
+        <p>This writes <span class="inline-code">output/transcript_chunks.json</span> — read these chunks to understand the session content.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Write classified_rows.json manually</h4>
+        <p>Create <span class="inline-code">output/classified_rows.json</span> as a JSON array using the 40-field schema. Reference an existing archived week's file as a template:</p>
+        <p><span class="inline-code">output/weeks/2026-06-10/classified_rows.json</span></p>
+        <p>Required fields include: <span class="inline-code">Title</span>, <span class="inline-code">OperatingBucket</span>, <span class="inline-code">LevelOfAnalysis</span>, <span class="inline-code">AIUseCaseType</span>, <span class="inline-code">SignalStrength</span>, <span class="inline-code">PrimaryFunctionChoice</span>, <span class="inline-code">CurrentStatus</span> (<span class="inline-code">"(2) Needs Review"</span>), and all other fields from the schema.</p>
+        <div class="callout warn">
+          <span class="icon">⚠️</span>
+          <div>Choice values must match <span class="inline-code">config/choice_values.json</span> <em>exactly</em>, including intentional typos:<br/>
+          &nbsp;• <span class="inline-code">"Crosss-Functional/Governance"</span> (3 s's)<br/>
+          &nbsp;• <span class="inline-code">"Leve 6 - Action/Automation"</span> (missing l)</div>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Run the weekly pipeline</h4>
+        <p>The pipeline detects the existing <span class="inline-code">classified_rows.json</span> and skips AI steps automatically.</p>
+        <pre><code>.\.venv\Scripts\python.exe src\main.py <span class="str">\
+  --input "input/transcripts/YOUR_FILE.docx"</span> <span class="str">\
+  --mode weekly</span></code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════ WATCHER ═══════════════════════════════════ -->
+  <span id="watcher" class="section-anchor"></span>
+  <h2>6 — Auto-Watcher (Hands-Free) <span class="badge auto">Fully Automatic</span></h2>
+
+  <p>The watcher polls <span class="inline-code">input/transcripts/</span> every 30 seconds. When a new file appears, it runs the full pipeline automatically — no terminal command needed.</p>
+
+  <pre><code><span class="comment"># Start the watcher (keep this terminal open while working)</span>
+.\.venv\Scripts\python.exe src\watch_transcripts.py</code></pre>
+
+  <div class="callout info">
+    <span class="icon">💡</span>
+    <div>The watcher sets <span class="inline-code">PYTHONIOENCODING=utf-8</span> automatically. You do not need to set it manually when using the watcher.</div>
+  </div>
+
+  <h3>Watcher manifest</h3>
+  <p>The watcher tracks processed files in <span class="inline-code">output/history/processed_files.json</span>. To reset the baseline (e.g., after a manual run):</p>
+  <pre><code>.\.venv\Scripts\python.exe src\watch_transcripts.py --mark-processed</code></pre>
+
+  <!-- ═══════════════════════════════════ OUTPUTS ═══════════════════════════════════ -->
+  <span id="outputs" class="section-anchor"></span>
+  <h2>7 — Understanding the Outputs</h2>
+
+  <table>
+    <tr><th>File / Folder</th><th>What it is</th><th>When to open it</th></tr>
+    <tr><td><span class="inline-code">output/ai_opportunity_report.html</span></td><td>Weekly report — current week (4 tabs)</td><td>After every run — primary review document</td></tr>
+    <tr><td><span class="inline-code">output/reports/monthly_YYYY-MM.html</span></td><td>Monthly roll-up for the calendar month</td><td>End of month review / leadership reporting</td></tr>
+    <tr><td><span class="inline-code">output/weeks/YYYY-MM-DD/weekly_report.html</span></td><td>Archived weekly report for that specific session</td><td>Historical reference or back-dated comparison</td></tr>
+    <tr><td><span class="inline-code">output/review_rows.xlsx</span></td><td>Excel workbook — all opportunities from current run</td><td>Human review before SharePoint submission</td></tr>
+    <tr><td><span class="inline-code">output/sharepoint_payload.json</span></td><td>Draft SharePoint row data (not pushed automatically)</td><td>When ready to submit to SharePoint</td></tr>
+    <tr><td><span class="inline-code">output/history/opportunities.json</span></td><td>Cumulative store of all unique opportunities ever seen</td><td>Debugging / manual inspection</td></tr>
+    <tr><td><span class="inline-code">output/transcript_chunks.json</span></td><td>Chunked text from the most recent transcript</td><td>Dry-run inspection / manual classification</td></tr>
+  </table>
+
+  <h3>Weekly report tab layout</h3>
+  <table>
+    <tr><th>Tab</th><th>Contents</th></tr>
+    <tr><td>Cards</td><td>One card per opportunity — title, owner, level badge, signal strength, guardrails, next step</td></tr>
+    <tr><td>Analytics</td><td>Bar charts: opportunities by bucket, type, level, signal strength</td></tr>
+    <tr><td>Full Table</td><td>Complete 40-field table, sortable</td></tr>
+    <tr><td>Trends</td><td>Week-over-week longitudinal charts — new vs. recurring, signal distribution over time</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════ REBUILD ═══════════════════════════════════ -->
+  <span id="rebuild" class="section-anchor"></span>
+  <h2>8 — Force Rebuild All Reports</h2>
+
+  <p>Use this when you need to regenerate all HTML reports from existing history without adding a new transcript (e.g., after manually editing a classified row, or after a code change).</p>
+
+  <pre><code><span class="comment"># No --input flag needed</span>
+.\.venv\Scripts\python.exe src\main.py --mode rebuild</code></pre>
+
+  <p>This regenerates every weekly and monthly HTML report from the archived <span class="inline-code">classified_rows.json</span> files stored in <span class="inline-code">output/weeks/</span>.</p>
+
+  <h3>All available modes</h3>
+  <table>
+    <tr><th>Mode</th><th>Command</th><th>What it does</th></tr>
+    <tr><td><span class="inline-code">weekly</span></td><td><span class="inline-code">--mode weekly --input FILE</span></td><td>Full pipeline — ingest, classify, report, archive, history update</td></tr>
+    <tr><td><span class="inline-code">dry-run</span></td><td><span class="inline-code">--mode dry-run --input FILE</span></td><td>Chunk and filter only — writes <span class="inline-code">transcript_chunks.json</span>, no AI calls</td></tr>
+    <tr><td><span class="inline-code">monthly</span></td><td><span class="inline-code">--mode monthly</span></td><td>Regenerate monthly reports only</td></tr>
+    <tr><td><span class="inline-code">rebuild</span></td><td><span class="inline-code">--mode rebuild</span></td><td>Regenerate all weekly + monthly reports from archives</td></tr>
+    <tr><td><span class="inline-code">payload</span></td><td><span class="inline-code">--mode payload</span></td><td>Re-run from classification step onward (skips chunking)</td></tr>
+  </table>
+
+  <!-- ═══════════════════════════════════ TROUBLESHOOT ═══════════════════════════════════ -->
+  <span id="troubleshoot" class="section-anchor"></span>
+  <h2>9 — Troubleshooting</h2>
+
+  <table>
+    <tr><th>Problem</th><th>Cause</th><th>Fix</th></tr>
+    <tr>
+      <td><span class="inline-code">UnicodeEncodeError</span> on <span class="inline-code">→</span> or emoji</td>
+      <td>Windows console encoding</td>
+      <td>Set <span class="inline-code">$env:PYTHONIOENCODING = "utf-8"</span> before running</td>
+    </tr>
+    <tr>
+      <td>Validation warnings on choice fields</td>
+      <td>Value doesn't match <span class="inline-code">choice_values.json</span> exactly</td>
+      <td>Check for the known typos: <span class="inline-code">Crosss-Functional/Governance</span> (3 s), <span class="inline-code">Leve 6</span> (missing l)</td>
+    </tr>
+    <tr>
+      <td><span class="inline-code">classified_rows.json</span> BOM error</td>
+      <td>File saved as UTF-8 with BOM by PowerShell <span class="inline-code">Set-Content</span></td>
+      <td>Read with <span class="inline-code">encoding='utf-8-sig'</span> then rewrite with <span class="inline-code">encoding='utf-8'</span></td>
+    </tr>
+    <tr>
+      <td>Watcher doesn't pick up new file</td>
+      <td>File already in the manifest from a prior baseline</td>
+      <td>Delete <span class="inline-code">output/history/processed_files.json</span> and re-run <span class="inline-code">--mark-processed</span></td>
+    </tr>
+    <tr>
+      <td>Wrong date used for the week</td>
+      <td>Filename date format not recognized</td>
+      <td>Add <span class="inline-code">--date YYYY-MM-DD</span> flag to the command</td>
+    </tr>
+    <tr>
+      <td>Reports not updating after manual row edit</td>
+      <td>Reports generated before the edit was saved</td>
+      <td>Run <span class="inline-code">--mode rebuild</span> to regenerate all from archives</td>
+    </tr>
+    <tr>
+      <td>AI step failed or timed out</td>
+      <td>Copilot SDK session timeout or network issue</td>
+      <td>Wait 30–60 seconds and re-run. The pipeline skips AI steps if <span class="inline-code">classified_rows.json</span> already exists — delete it first if you want a fresh AI run</td>
+    </tr>
+    <tr>
+      <td>Copilot SDK: <span class="inline-code">not logged in</span> or auth error</td>
+      <td>GitHub Copilot session has expired</td>
+      <td>Run <span class="inline-code">copilot login</span> in your terminal to re-authenticate, then retry</td>
+    </tr>
+    <tr>
+      <td><span class="inline-code">ModuleNotFoundError</span></td>
+      <td>Running system Python instead of venv</td>
+      <td>Always use <span class="inline-code">.\.venv\Scripts\python.exe</span> — not <span class="inline-code">python</span> or <span class="inline-code">python3</span></td>
+    </tr>
+  </table>
+
+  <!-- ═══════════════════════════════════ KEEPER RULES ═══════════════════════════════════ -->
+  <h2>10 — Keeper Rules</h2>
+
+  <ul>
+    <li>Never commit <span class="inline-code">.env</span> files or API keys to the repository.</li>
+    <li>Never push directly to SharePoint — all payloads are draft-only and require human review.</li>
+    <li>Always use <span class="inline-code">.\.venv\Scripts\python.exe</span> — not the system Python.</li>
+    <li>Run <span class="inline-code">--mark-processed</span> after every manual pipeline run to keep the watcher manifest current.</li>
+    <li>When editing classified rows manually, run <span class="inline-code">--mode rebuild</span> afterward so all HTML reports reflect the change.</li>
+    <li>The <span class="inline-code">output/</span> folder is gitignored — do not commit generated reports or artifacts.</li>
+    <li>Choice field values must match <span class="inline-code">config/choice_values.json</span> exactly — including the known typos.</li>
+    <li>The default AI backend is <strong>GitHub Copilot SDK</strong>. If no <span class="inline-code">OPENAI_API_KEY</span> is set, Copilot is used automatically. Do not set a dummy key — leave it unset to stay on Copilot.</li>
+  </ul>
+
+  <hr class="divider" />
+
+  <!-- ═══════════════════════════════════ APPENDIX A — PLAIN ENGLISH ═══════════════════════════════════ -->
+  <span id="appendix-plain-english" class="section-anchor"></span>
+  <h2>Appendix A — Plain English Guide</h2>
+  <p style="color:var(--gray); font-size:13px; margin-bottom:24px;">This section explains the entire system without technical language. If you're new to this tool or just need a refresher, start here.</p>
+
+  <h3>What is this thing, really?</h3>
+  <p>Every week your Electronics AI Working Group meets and talks about ways the business could use AI. Those conversations get recorded and turned into a Word document (a transcript). Without this tool, someone would have to read through hours of conversation, pull out the interesting ideas, fill out a bunch of spreadsheet fields for each one, and organize them into a report.</p>
+  <p>This tool does all of that automatically. You drop in the Word document, it reads through the conversation, figures out which parts are talking about AI opportunities, writes up a structured description of each one, and creates a polished report you can share with leadership.</p>
+
+  <div class="callout tip">
+    <span class="icon">💡</span>
+    <div><strong>The short version:</strong> Meeting transcript goes in → organized AI opportunity report comes out. A human still reviews everything before anything goes anywhere official.</div>
+  </div>
+
+  <h3>What does the AI actually do?</h3>
+  <p>There are two moments where AI is used. Everything else is just regular computer logic:</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Reading for ideas</h4>
+        <p>The AI reads each section of the transcript and asks itself: <em>"Is someone describing a way AI could help here?"</em> It pulls out the moments that look like real opportunities and ignores the small talk, agenda items, and one-off comments.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Filling out the form</h4>
+        <p>For each opportunity it found, the AI fills out a detailed description — things like: who brought it up, how risky it is, how ready the organization is for it, what the next step should be, and whether a human needs to approve it before anything happens. Think of it like the AI filling out a long intake form for you.</p>
+      </div>
+    </div>
+  </div>
+  <p>Everything the AI produces is marked as a <strong>draft</strong>. Nothing gets sent anywhere — no SharePoint, no email, nothing — until a real person reviews it and approves it.</p>
+
+  <h3>What AI brain does it use?</h3>
+  <p>The tool is smart enough to use whatever AI access you already have:</p>
+  <table>
+    <tr><th>If you have this…</th><th>It uses this…</th></tr>
+    <tr><td>A company OpenAI API key</td><td>OpenAI (ChatGPT's engine)</td></tr>
+    <tr><td>A GitHub Copilot subscription (like the one running this assistant)</td><td>GitHub Copilot — no extra key needed</td></tr>
+    <tr><td>Neither</td><td>You fill out the form yourself using an existing week as a template</td></tr>
+  </table>
+  <p>For most people at Acuity, the answer is the middle row — your Copilot subscription covers it.</p>
+
+  <h3>Step by step: what happens when you run it</h3>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>You drop the Word document into a folder</h4>
+        <p>The transcript file goes into the <span class="inline-code">input/transcripts/</span> folder on your computer. That's it. The file just needs to have the date in its name (e.g., <span class="inline-code">6_17_2026</span>).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>You run one command</h4>
+        <p>You open PowerShell (the blue command line window) and type a single command. That's the whole job on your end. Everything else is automatic.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>The system reads and cleans the transcript</h4>
+        <p>It opens the Word document, strips out formatting noise, and splits the conversation into chunks — one chunk per speaker turn or topic. Like breaking a book into paragraphs before reading it.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h4>It filters for the relevant parts</h4>
+        <p>Not every sentence in a meeting is about AI. The tool scans for keywords — things like "agent," "automate," "Copilot," "model," "workflow" — and sets aside the parts of the conversation that don't seem relevant. This step uses no AI at all; it's just simple text matching, like a search function.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h4>AI reads the relevant chunks and picks out the opportunities</h4>
+        <p>Now the AI reads only the filtered sections (never the full transcript) and identifies the actual ideas worth capturing. It looks for things like: a demo someone shared, a repeated manual process someone mentioned, a tool someone is already using, or a governance question the group raised.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h4>AI fills out the details for each opportunity</h4>
+        <p>For each idea it found, the AI completes a structured record — about 40 fields covering things like who owns it, how complex it is, whether it needs a human in the loop, and what the recommended next step is. All of this gets saved as a draft.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <h4>It builds your reports</h4>
+        <p>The tool creates three things: an Excel spreadsheet (for review), a SharePoint data file (draft, not sent yet), and a polished HTML report you can open in any browser. The report has four views: a card layout, charts, a full table, and a trends view that shows how ideas are evolving week over week.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <h4>It files everything away</h4>
+        <p>The week's data is saved into a history folder. Every previous week's report gets updated too, so the trend charts always show the full picture — even if you add a transcript from a past meeting later.</p>
+      </div>
+    </div>
+  </div>
+
+  <h3>What if I add a transcript from a past meeting?</h3>
+  <p>No problem. The system checks the date on the file. If the meeting happened before the most recent transcript already processed, it automatically goes back and updates <em>all</em> the reports — every week and every month — so the trend data stays accurate. You don't have to do anything extra.</p>
+
+  <h3>What does "human review required" mean in practice?</h3>
+  <p>After the tool runs, you get an Excel file and an HTML report. Every row in those files is flagged as <strong>"Needs Review."</strong> A person on the team looks through them, corrects anything the AI got wrong, and only then decides whether to submit anything to SharePoint. The tool never pushes anything automatically — it just does the prep work.</p>
+
+  <h3>What could go wrong, and how do I fix it?</h3>
+  <table>
+    <tr><th>What you see</th><th>What it probably means</th><th>What to do</th></tr>
+    <tr><td>Nothing happened after running the command</td><td>The file might already be in the "already processed" list</td><td>Ask someone to reset the processed file list, or contact David High</td></tr>
+    <tr><td>The report opened but has weird characters (arrows, boxes)</td><td>A text encoding setting is missing</td><td>Run <span class="inline-code">$env:PYTHONIOENCODING = "utf-8"</span> first, then try again</td></tr>
+    <tr><td>The AI step failed or was skipped</td><td>No Copilot or OpenAI access available</td><td>The tool still works — you just need to manually fill in the opportunity details using a prior week's file as a template, then re-run</td></tr>
+    <tr><td>The date on the report looks wrong</td><td>The filename didn't have a recognizable date</td><td>Rename the file to include the date (e.g., <span class="inline-code">6_17_2026</span>) and re-run</td></tr>
+  </table>
+
+  <h3>The one thing you should never do</h3>
+  <div class="callout danger">
+    <span class="icon">🚫</span>
+    <div>Never submit anything to SharePoint directly from the files this tool produces without a human reviewing them first. The tool is designed to help humans make better decisions faster — not to replace the decision.</div>
+  </div>
+
+  <h3>Who maintains this?</h3>
+  <p>The system was built and is maintained by <strong>David High</strong> (DK High). If something breaks or you're not sure what to do, reach out to him. The Overview folder in this repository also has a visual flowchart of the entire process if you want to see it as a diagram.</p>
+
+  <hr class="divider" />
+  <p style="font-size:12px; color:var(--gray); text-align:center;">Electronics AI Working Group &nbsp;·&nbsp; Transcript Intake Agent &nbsp;·&nbsp; See <span class="inline-code">Overview/process_overview.html</span> for the full system flowchart</p>
+
+</div>
+
+<!-- ═══════════════════════════════════ OPENSPEC ═══════════════════════════════════ -->
+<div class="page">
+  <span id="openspec" class="section-anchor"></span>
+  <h2>OpenSpec Change Workflow</h2>
+  <p>
+    All changes to <span class="inline-code">src/</span>, <span class="inline-code">skills/</span>,
+    and <span class="inline-code">config/</span> require an OpenSpec change artifact to be created
+    and reviewed <em>before</em> implementation begins. This ensures every code change is backed by
+    documented intent, design rationale, and verifiable specs.
+  </p>
+
+  <h3>When to Create a Change</h3>
+  <ul>
+    <li>Any new feature or pipeline stage modification</li>
+    <li>Changes to LLM prompts or extraction logic</li>
+    <li>Updates to classification schema or config JSON</li>
+    <li>New output formats (reports, PPTX, integrations)</li>
+    <li>Bug fixes that affect documented behavior</li>
+  </ul>
+  <div class="callout tip">
+    <span class="icon">&#x1F4A1;</span>
+    <div>If you're unsure whether a change needs an OpenSpec artifact, create one anyway. The process is lightweight and keeps the codebase documented.</div>
+  </div>
+
+  <h3>The Four CLI Commands</h3>
+  <table>
+    <tr><th>Command</th><th>When to Use</th></tr>
+    <tr>
+      <td><span class="inline-code">openspec new change "&lt;name&gt;"</span></td>
+      <td>Start a new change — creates proposal, design, specs, and tasks scaffolding under <span class="inline-code">openspec/changes/&lt;name&gt;/</span></td>
+    </tr>
+    <tr>
+      <td><span class="inline-code">openspec instructions apply --change "&lt;name&gt;"</span></td>
+      <td>Get the implementation task list and context files for a change before coding</td>
+    </tr>
+    <tr>
+      <td><span class="inline-code">openspec status --change "&lt;name&gt;"</span></td>
+      <td>Check artifact completion and change readiness at any point</td>
+    </tr>
+    <tr>
+      <td><span class="inline-code">/opsx:apply &lt;name&gt;</span> (Copilot CLI)</td>
+      <td>Invoke the openspec-apply-change skill to implement all pending tasks for a change</td>
+    </tr>
+  </table>
+
+  <h3>Canonical Specs Location</h3>
+  <p>
+    The folder <span class="inline-code">openspec/specs/</span> is the authoritative reference for
+    how the current system behaves. It contains one spec per pipeline capability:
+  </p>
+  <table>
+    <tr><th>Spec</th><th>Covers</th></tr>
+    <tr><td><span class="inline-code">openspec/specs/transcript-ingestion/spec.md</span></td><td>DOCX reading, cleaning, turn splitting, keyword filtering, chunking</td></tr>
+    <tr><td><span class="inline-code">openspec/specs/opportunity-extraction/spec.md</span></td><td>LLM candidate extraction from filtered chunks</td></tr>
+    <tr><td><span class="inline-code">openspec/specs/opportunity-classification/spec.md</span></td><td>MVP schema classification and validation</td></tr>
+    <tr><td><span class="inline-code">openspec/specs/trend-reporting/spec.md</span></td><td>Weekly + monthly HTML trend reports, history store</td></tr>
+    <tr><td><span class="inline-code">openspec/specs/meeting-presentation/spec.md</span></td><td>PPTX deck generation for upcoming sessions</td></tr>
+  </table>
+  <div class="callout info">
+    <span class="icon">&#x1F4C1;</span>
+    <div>When a change modifies a capability, its spec in <span class="inline-code">openspec/specs/</span> must be updated as part of that change's tasks before archiving.</div>
+  </div>
+
+  <h3>Typical Workflow</h3>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span><div><strong>Propose</strong> — Run <span class="inline-code">/opsx:propose</span> or <span class="inline-code">openspec new change</span> to create the change artifacts.</div></div>
+    <div class="step"><span class="step-num">2</span><div><strong>Review artifacts</strong> — Check <span class="inline-code">proposal.md</span>, <span class="inline-code">design.md</span>, capability specs, and <span class="inline-code">tasks.md</span> under <span class="inline-code">openspec/changes/&lt;name&gt;/</span>.</div></div>
+    <div class="step"><span class="step-num">3</span><div><strong>Implement</strong> — Run <span class="inline-code">/opsx:apply &lt;name&gt;</span> to execute all tasks. The agent implements code, marks tasks complete, and verifies the pipeline still runs.</div></div>
+    <div class="step"><span class="step-num">4</span><div><strong>Archive</strong> — Run <span class="inline-code">/opsx:archive &lt;name&gt;</span> to move the completed change to <span class="inline-code">openspec/archive/</span> and sync specs to <span class="inline-code">openspec/specs/</span>.</div></div>
+  </div>
+</div>
+</body>
+</html>

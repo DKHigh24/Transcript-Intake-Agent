@@ -27,6 +27,7 @@
   "HumanInTheLoopRequired": true,
   "NextStep": "",
   "ScheduleHealth": "Not Started",
+  "SubOrdinateFunction": "",
   "ValueScore": 3,
   "EffortScore": 3,
   "RiskScore": 3,

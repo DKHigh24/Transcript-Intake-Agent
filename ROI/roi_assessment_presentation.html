@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Transcript Intake Pipeline - Time Savings ROI Assessment</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #0b1220; color: #111827; }
+    .deck { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .slide { background: #ffffff; border-radius: 12px; padding: 24px; margin: 0 0 20px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+    h1, h2 { margin: 0 0 12px 0; color: #0f172a; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+    p { margin: 8px 0; line-height: 1.5; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 12px; }
+    .kpi { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px; }
+    .kpi .label { font-size: 12px; color: #1d4ed8; font-weight: bold; text-transform: uppercase; }
+    .kpi .value { font-size: 26px; font-weight: bold; color: #1e3a8a; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: left; font-size: 14px; }
+    th { background: #f8fafc; }
+    .note { font-size: 12px; color: #475569; }
+    .good { color: #065f46; font-weight: bold; }
+    .warn { color: #9a3412; font-weight: bold; }
+    .mono { font-family: Consolas, monospace; background: #f8fafc; padding: 2px 6px; border-radius: 4px; }
+    .small { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="deck">
+    <section class="slide">
+      <h1>Time Savings ROI Assessment</h1>
+      <p><strong>Program:</strong> Transcript Intake Agent (weekly + monthly reporting)</p>
+      <p><strong>Scenario:</strong> Pipeline now runs with GitHub Copilot SDK by default (no OpenAI key required).</p>
+      <p class="small">Prepared: 2026-06-16</p>
+    </section>
+
+    <section class="slide">
+      <h2>1) Executive Summary</h2>
+      <p>Automating transcript intake, opportunity extraction/classification, and report generation reduces labor from an estimated <strong>7.0 hours</strong> per weekly cycle to <strong>1.2 hours</strong> (mostly human review), saving about <strong>5.8 hours per week</strong>.</p>
+      <div class="kpi-grid">
+        <div class="kpi">
+          <div class="label">Manual effort / week</div>
+          <div class="value">7.0 h</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Automated effort / week</div>
+          <div class="value">1.2 h</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Net time saved / week</div>
+          <div class="value">5.8 h</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Percent reduction</div>
+          <div class="value">83%</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <h2>2) Manual vs Automated End-to-End Time</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Process Step</th>
+            <th>Manual Time (hrs)</th>
+            <th>Automated Time (hrs)</th>
+            <th>Savings (hrs)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Read + parse transcript</td><td>1.8</td><td>0.1</td><td>1.7</td></tr>
+          <tr><td>Identify AI opportunities</td><td>1.5</td><td>0.2</td><td>1.3</td></tr>
+          <tr><td>Classify into 40-field schema</td><td>2.0</td><td>0.2</td><td>1.8</td></tr>
+          <tr><td>Build workbook + payload + HTML reports</td><td>1.0</td><td>0.1</td><td>0.9</td></tr>
+          <tr><td>QA and review</td><td>0.7</td><td>0.6</td><td>0.1</td></tr>
+          <tr><th>Total</th><th>7.0</th><th>1.2</th><th class="good">5.8</th></tr>
+        </tbody>
+      </table>
+      <p class="note">Assumes one weekly transcript with normal meeting length and quality.</p>
+    </section>
+
+    <section class="slide">
+      <h2>3) Development Credit Cost (Completed Build)</h2>
+      <p>The repository does not store a direct premium request counter, so development credit usage is estimated from implementation scope and iteration count.</p>
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Estimated Credits</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Core weekly/monthly trend architecture</td><td>120</td><td>Multi-file design + implementation + testing</td></tr>
+          <tr><td>Back-dated rebuild logic and CLI modes</td><td>55</td><td>Rebuild path + behavior verification</td></tr>
+          <tr><td>Weekly HTML format standardization</td><td>45</td><td>Refactor to canonical template + trends tab</td></tr>
+          <tr><td>Watcher + operations docs + overview artifacts</td><td>50</td><td>Operationalization and maintenance docs</td></tr>
+          <tr><td>Copilot SDK backend integration</td><td>50</td><td>Adapter layer + dependency + documentation updates</td></tr>
+          <tr><th>Total estimated build credits</th><th>320</th><th class="warn">Planning estimate</th></tr>
+        </tbody>
+      </table>
+      <p class="note">Recommended governance: record actual premium requests from Copilot usage telemetry going forward and replace estimate.</p>
+    </section>
+
+    <section class="slide">
+      <h2>4) Recurring Credit Impact (SDK Runtime)</h2>
+      <p>Runtime credit use is driven mostly by two AI stages: (1) candidate extraction per relevant chunk and (2) classification per candidate.</p>
+      <table>
+        <thead>
+          <tr><th>Driver</th><th>Typical Volume / Run</th><th>Estimated Credits</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Extraction calls (relevant chunks)</td><td>15-25</td><td>15-25</td></tr>
+          <tr><td>Classification calls (opportunities)</td><td>8-15</td><td>8-15</td></tr>
+          <tr><th>Total credits per weekly run</th><th>-</th><th>23-40 (base case: 30)</th></tr>
+        </tbody>
+      </table>
+      <p class="note">Base-case planning value used below: <span class="mono">30 credits per transcript</span>.</p>
+    </section>
+
+    <section class="slide">
+      <h2>5) Projected ROI - Next Quarter (13 weeks)</h2>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Weekly time savings</td><td>5.8 hours</td></tr>
+          <tr><td>Total quarterly time savings</td><td class="good">75.4 hours</td></tr>
+          <tr><td>Equivalent work weeks (@40h)</td><td>1.9 weeks</td></tr>
+          <tr><td>Quarterly recurring credits (base case)</td><td>390 credits (13 x 30)</td></tr>
+          <tr><td>Quarterly recurring credits (range)</td><td>299-520 credits</td></tr>
+        </tbody>
+      </table>
+      <p class="small">Optional labor-value lens: at $85/hour loaded rate, 75.4 hours is about $6,409 in quarterly time value.</p>
+    </section>
+
+    <section class="slide">
+      <h2>6) Projected ROI - Next Year (52 weeks)</h2>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Annual time savings</td><td class="good">301.6 hours</td></tr>
+          <tr><td>Equivalent work weeks (@40h)</td><td>7.5 weeks</td></tr>
+          <tr><td>Annual recurring credits (base case)</td><td>1,560 credits (52 x 30)</td></tr>
+          <tr><td>Annual recurring credits (range)</td><td>1,196-2,080 credits</td></tr>
+          <tr><td>Estimated first-year net after build cost</td><td>301.6 hours saved with one-time build cost already absorbed</td></tr>
+        </tbody>
+      </table>
+      <p class="small">Optional labor-value lens: at $85/hour loaded rate, 301.6 hours is about $25,636 in annual time value.</p>
+    </section>
+
+    <section class="slide">
+      <h2>7) Break-Even and Decision View</h2>
+      <p><strong>Break-even is immediate</strong> for operations teams because implementation is complete and recurring runs now replace manual effort each week.</p>
+      <table>
+        <thead>
+          <tr><th>View</th><th>Outcome</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Operational throughput</td><td>Higher consistency, lower cycle time, easier back-date correction</td></tr>
+          <tr><td>Risk posture</td><td>No OpenAI key dependency; Copilot SDK path fits org policy constraints</td></tr>
+          <tr><td>Scalability</td><td>Linear growth with transcript volume; mostly bounded by review capacity</td></tr>
+          <tr><td>Governance</td><td>All rows remain draft and human-reviewed before SharePoint push</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="slide">
+      <h2>8) Assumptions and How to Recalibrate</h2>
+      <ul>
+        <li>Cadence assumed: 1 transcript per week.</li>
+        <li>Base-case runtime credits assumed: 30 per run.</li>
+        <li>Manual baseline assumed: 7.0 hours per run.</li>
+        <li>Automated baseline assumed: 1.2 hours per run (including review).</li>
+      </ul>
+      <p>Update these formulas when your actuals are available:</p>
+      <p class="mono">Weekly Savings = ManualHours - AutomatedHours</p>
+      <p class="mono">Quarter Savings = WeeklySavings x 13</p>
+      <p class="mono">Annual Savings = WeeklySavings x 52</p>
+      <p class="mono">Recurring Credits = CreditsPerRun x NumberOfRuns</p>
+      <p class="note">File location: <span class="mono">ROI/roi_assessment_presentation.html</span></p>
+    </section>
+  </div>
+</body>
+</html>

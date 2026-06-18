@@ -31,5 +31,6 @@
   "EffortScore": "EffortScore",
   "RiskScore": "RiskScore",
   "ReadinessScore": "ReadinessScore",
-  "SignalScore": "SignalScore"
+  "SignalScore": "SignalScore",
+  "SubOrdinateFunction": "SubOrdinateFunction"
 }

@@ -1,0 +1,52 @@
+schema: spec-driven
+
+context: |
+  Project: AI Transcript Intake Agent — Electronics AI Working Group (Acuity Brands)
+
+  Purpose: A Python pipeline that reads weekly meeting transcripts (.docx), extracts AI
+  opportunity candidates using an LLM, classifies them into a SharePoint MVP schema,
+  generates HTML trend reports (weekly + monthly), and auto-builds a PowerPoint deck
+  for the upcoming session.
+
+  Tech stack:
+    - Python 3.14, python-pptx, openpyxl, python-docx, jinja2-style HTML generation
+    - LLM backends: OpenAI API (via OPENAI_API_KEY) or GitHub Copilot SDK (via GITHUB_TOKEN fine-grained PAT)
+    - Config-driven: config/choice_values.json, config/mvp_output_schema.json, config/sharepoint_field_mapping.json
+    - No web framework — pure script pipeline invoked via CLI
+
+  Pipeline stages (in order):
+    1. transcript-ingestion   — Read DOCX, clean, split turns, keyword-filter, chunk (src/transcript_reader.py, transcript_cleaner.py, transcript_chunker.py)
+    2. opportunity-extraction  — LLM extracts candidates from chunks (src/candidate_detector.py)
+    3. opportunity-classification — LLM classifies candidates to MVP schema (src/classifier.py)
+    4. trend-reporting         — Weekly + monthly HTML reports from history (src/trend_reporter.py, report_generator.py)
+    5. meeting-presentation    — PPTX deck for upcoming session (src/presentation_builder.py)
+
+  Key constraints:
+    - NEVER send the full transcript to the LLM — only keyword-filtered, size-bounded chunks (MAX_CHUNK_CHARS=3000)
+    - All LLM output is DRAFT only — CurrentStatus defaults to "(2) Needs Review"
+    - Human review is required before any SharePoint push (ENABLE_POWER_AUTOMATE_PUSH defaults to false)
+    - Do not hard-code Power Automate URLs or API keys — all secrets via .env
+    - Secrets: .env is gitignored; .env.example documents required keys
+
+  Repo structure:
+    src/          — All pipeline Python source
+    skills/       — LLM prompt templates (markdown)
+    config/       — JSON schema and field mapping files (committed)
+    input/        — Transcripts (gitignored) and reference presentations
+    output/       — All generated artifacts (gitignored)
+    openspec/     — Change governance (specs/, changes/, config.yaml)
+    Operating Procedure/ — User-facing manual (HTML)
+    ROI/          — ROI assessment presentation
+
+  Change governance rule:
+    Any modification to src/, skills/, or config/ MUST be preceded by an OpenSpec change
+    artifact (proposal + design + specs + tasks) before implementation begins.
+
+rules:
+  proposal:
+    - Keep proposals under 2 pages
+    - Always list affected pipeline stages under Impact
+    - Capabilities section must match actual src/ module boundaries
+  tasks:
+    - Each task must be completable in one session
+    - Verification tasks (run pipeline, check output) must be the final task group

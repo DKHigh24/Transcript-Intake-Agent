@@ -2,6 +2,9 @@
 Python agent that extracts AI opportunities from meeting transcripts, classifies them into the AI Acceleration framework, generates reviewable SharePoint-ready rows, and optionally posts draft intake records through Power Automate with human review.
 # AI Transcript Intake Agent
 
+> 📋 **New operator?** See [`Operating Procedure/operating_manual.html`](Operating%20Procedure/operating_manual.html) for the full step-by-step manual.
+> 📖 **Want the system overview?** See [`Overview/process_overview.html`](Overview/process_overview.html) for the visual flowchart.
+
 ## Purpose
 
 This repository contains a Python-based local agent workflow for converting Electronics AI Working Group meeting transcripts into structured AI opportunity intake records.
@@ -25,6 +28,10 @@ Power BI / KB / demo backlog / release candidate tracking
 ```
 
 The agent should help reduce the manual effort required to convert working group discussions into structured SharePoint records while preserving human review, ownership, and governance.
+
+> 📖 **New here?** See **[`Overview/process_overview.html`](Overview/process_overview.html)**
+> for a visual flowchart of the whole process plus instructions for keeping it
+> running. Open it with `./Overview/open_overview.ps1` (or `Invoke-Item "Overview/process_overview.html"`).
 
 ---
 
@@ -113,12 +120,23 @@ ai-transcript-intake-agent/
 │   ├── classifier.py
 │   ├── validators.py
 │   ├── review_exporter.py
-│   └── power_automate_client.py
+│   ├── report_generator.py
+│   ├── power_automate_client.py
+│   ├── period_utils.py          # meeting-date / week / month resolution
+│   ├── opportunity_matcher.py   # deterministic week-over-week matching
+│   ├── history_store.py         # cumulative opportunity history
+│   ├── trend_analyzer.py        # weekly / monthly trend metrics
+│   └── trend_reporter.py        # weekly + monthly HTML reports
 │
 ├── input/
 │   └── transcripts/
 │
 └── output/
+    ├── (current-run working files: chunks, candidates, classified_rows,
+    │    review_rows.xlsx, sharepoint_payload.json, ai_opportunity_report.html)
+    ├── weeks/<YYYY-MM-DD>/       # per-week archive + weekly_report.html
+    ├── history/opportunities.json   # cumulative cross-week history
+    └── reports/monthly_<YYYY-MM>.html
 ```
 
 ---
@@ -528,7 +546,156 @@ python src/main.py --input input/transcripts/meeting.docx --mode push
 
 ---
 
-## Recommended VS Code / GitHub Copilot Workflow
+## Weekly & Monthly Trend Analysis
+
+The agent supports recurring **weekly transcript uploads**. Each week's transcript
+is processed, archived, and merged into a cumulative history so the system can look
+back over previous weeks and surface trends.
+
+### How a week is identified
+
+The meeting date is parsed from the transcript **filename**
+(e.g. `Electronics AI - Working Session - 6_3_2026.docx` → `2026-06-03`).
+Supported formats include `M_D_YYYY`, `M-D-YYYY`, `YYYY-MM-DD`, and `M.D.YY`.
+If no date is found, the file's last-modified date is used. You can always override
+with `--date YYYY-MM-DD`.
+
+### Run the weekly pipeline
+
+```bash
+python src/main.py --input "input/transcripts/Electronics AI - Working Session - 6_3_2026.docx" --mode weekly
+```
+
+This runs the full classify → payload pipeline, then:
+
+```text
+1. Archives the week to       output/weeks/<YYYY-MM-DD>/
+                              (classified_rows.json, review_rows.xlsx,
+                               sharepoint_payload.json, weekly_report.html)
+2. Ingests the rows into      output/history/opportunities.json
+                              (idempotent by meeting date — re-runs do not double-count)
+3. Generates the weekly HTML  output/weeks/<YYYY-MM-DD>/weekly_report.html
+4. Refreshes the monthly HTML output/reports/monthly_<YYYY-MM>.html
+```
+
+**Back-dated transcripts are handled automatically.** If the transcript's meeting
+date is earlier than any week already in history, the pipeline detects this and
+rebuilds *every* weekly and monthly report so all longitudinal views stay accurate.
+No special flag is needed — just run `--mode weekly` as normal.
+
+Add `--mock` to test without OpenAI, and `--date` to override the meeting date.
+
+### Rebuild all reports manually
+
+If you ever need to force a full regeneration of every weekly and monthly report
+from current history (e.g. after manual history edits, or to apply a report format
+change to archived weeks):
+
+```bash
+python src/main.py --mode rebuild
+```
+
+No transcript or API key is required — it reads `output/history/opportunities.json`
+and the archived `classified_rows.json` files.
+
+### Build / refresh a monthly report
+
+```bash
+# Derive the month from a transcript filename
+python src/main.py --input "input/transcripts/Electronics AI - Working Session - 6_3_2026.docx" --mode monthly
+
+# Or target a month explicitly (no transcript needed — reads from history)
+python src/main.py --mode monthly --month 2026-06
+```
+
+### What the reports show
+
+**Weekly report** (`weekly_report.html`):
+
+The weekly report uses the **same layout and behavior as the original
+`ai_opportunity_report.html`** — a KPI header plus three interactive tabs:
+**📋 Opportunity Cards** (filterable), **📊 Analytics** (donut/bar charts), and
+**🗂 Full Table** — rendered over that week's opportunities. It adds one extra tab:
+
+```text
+- 📈 Trends tab (longitudinal insight layered on the canonical format):
+  - KPIs: opportunities this week, new this week, carried over, escalating signal, tracked all-time
+  - "New this week" cards
+  - "Carried over" cards with week-over-week movement (signal ↑/↓, level ↑/↓)
+  - Opportunities-per-week line for recent weeks
+```
+
+The canonical layout is produced by `report_generator.build_report_html()` (the
+single source of truth); the weekly report injects the Trends tab via that
+function's `extra_nav` / `extra_sections` / `extra_scripts` parameters. See
+`skills/weekly_report_format.md` for the format standard and how to extend it.
+
+**Monthly report** (`monthly_<YYYY-MM>.html`):
+
+```text
+- KPIs: unique opportunities, weeks covered, new this month, carried from prior, escalating
+- Opportunities per week (total / new / recurring)
+- Operating-bucket distribution stacked by week
+- AI use case type distribution for the month
+- Signal / level momentum table (escalations)
+- Full table of opportunities active this month with first-seen / last-seen and hit counts
+```
+
+### How recurring opportunities are detected
+
+Opportunities are matched across weeks using **deterministic fuzzy matching** in
+Python (normalized title equality, difflib sequence ratio, and token overlap) — no
+transcripts or model calls are involved, keeping the trend layer token-free and
+fully reproducible. All trend outputs operate on `classified_rows.json`, so they
+run without an OpenAI key.
+
+> Note: On Windows, if the console raises a `UnicodeEncodeError` on the `→`
+> character, set `PYTHONIOENCODING=utf-8` before running (the generated HTML is
+> unaffected).
+
+### Automatic processing on upload (folder watcher)
+
+Instead of running the weekly pipeline by hand, you can run a watcher that monitors
+`input/transcripts/` and automatically processes each new transcript as it is added.
+
+```bash
+# Watch forever — processes any new/changed .docx as soon as its upload finishes
+python src/watch_transcripts.py
+
+# Other options
+python src/watch_transcripts.py --once            # process current backlog, then exit
+python src/watch_transcripts.py --interval 10     # poll every 10s (default 5)
+python src/watch_transcripts.py --mark-processed  # baseline existing files (record without running)
+python src/watch_transcripts.py --print-only      # show what would run, without running it
+```
+
+How it works:
+
+```text
+- Pure polling — no extra dependencies, works cross-platform.
+- Safe for in-progress uploads: a file is processed only after its size and
+  modified time stay unchanged for one full poll interval (upload finished).
+- Idempotent: processed files are recorded in
+  output/history/processed_files.json (keyed by name + size + mtime), so a file
+  is reprocessed only if it actually changes. The weekly pipeline is itself
+  idempotent by meeting date.
+- Each new transcript triggers:  main.py --input <file> --mode weekly
+  which archives the week, ingests it into history, and regenerates the weekly
+  and monthly HTML reports.
+```
+
+Typical first-time setup (so already-processed transcripts are not re-run):
+
+```bash
+python src/watch_transcripts.py --mark-processed   # baseline what's already done
+python src/watch_transcripts.py                    # then start watching
+```
+
+> The watcher invokes `--mode weekly`, which runs extraction/classification and
+> therefore requires a configured `OPENAI_API_KEY` in `.env`. Add `--mock` to
+> exercise the wiring without calling OpenAI. On Windows, run inside a shell where
+> `PYTHONIOENCODING=utf-8` is set (the watcher passes this to the pipeline
+> automatically).
 
 ### Step 1
 

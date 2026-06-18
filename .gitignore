@@ -1,0 +1,19 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Pipeline outputs (regenerated each run)
+output/
+
+# Transcripts (sensitive, not committed)
+input/transcripts/
+
+# Intermediate artifacts (committed formats excluded below)
+*.xlsx
+*.json
+!config/*.json
+
+# Presentations (generated output)
+*.pptx
