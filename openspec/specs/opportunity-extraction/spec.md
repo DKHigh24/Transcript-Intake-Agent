@@ -1,48 +1,19 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
-### Requirement: Send chunks to LLM for extraction
-The system SHALL send each transcript chunk to the configured LLM backend with the extraction system prompt and return a list of candidate AI opportunities.
+### Requirement: Extractor preserves maturity-signal language in evidence
+The extraction skill (skills/extract_opportunities.md) SHALL instruct the LLM to preserve
+the speaker's exact phrasing in `EvidenceSummary`, with particular attention to maturity-
+signal language (delivery confirmations, piloting phrases, or aspirational proposals).
 
-#### Scenario: Candidates returned
-- **WHEN** the LLM responds with a valid JSON array of candidates
-- **THEN** the system SHALL parse and return that array
+The extractor SHALL NOT itself classify maturity — it only captures the verbatim phrase
+that will later allow the classifier to infer `MaturitySignal`.
 
-#### Scenario: Empty chunk response
-- **WHEN** the LLM returns an empty array `[]`
-- **THEN** the system SHALL treat it as valid and contribute zero candidates from that chunk
+#### Scenario: Delivery confirmation preserved in evidence
+- **WHEN** a speaker says "we already have this working in our department"
+- **THEN** the extractor SHALL include that exact phrase or a close paraphrase in
+  `EvidenceSummary` so the classifier can detect the `Delivered / Active Today` signal
 
-#### Scenario: LLM failure on a chunk
-- **WHEN** the LLM call raises an exception or returns unparseable output
-- **THEN** the system SHALL log a warning and continue processing remaining chunks without halting
-
-### Requirement: Never send full transcript to LLM
-The system SHALL only send keyword-filtered, size-bounded chunks to the LLM — never the full raw transcript text.
-
-#### Scenario: Full transcript blocked
-- **WHEN** the pipeline runs in any mode
-- **THEN** no single LLM call SHALL contain the entire transcript text
-
-### Requirement: Deduplicate candidates by title
-The system SHALL deduplicate extracted candidates by case-insensitive exact title match before persisting.
-
-#### Scenario: Duplicate title removed
-- **WHEN** two candidates share the same title (case-insensitive)
-- **THEN** only the first occurrence SHALL be retained
-
-### Requirement: Persist candidates to disk
-The system SHALL write the deduplicated candidate list to `output/candidates.json`.
-
-#### Scenario: Candidates saved
-- **WHEN** extraction completes
-- **THEN** `output/candidates.json` SHALL exist and contain a JSON array (empty array is valid if no candidates found)
-
-### Requirement: Support pluggable LLM backends
-The system SHALL support OpenAI (via `OPENAI_API_KEY`) and GitHub Copilot SDK (via `GITHUB_TOKEN`) as interchangeable backends, selected by environment configuration.
-
-#### Scenario: OpenAI selected
-- **WHEN** `OPENAI_API_KEY` is set in the environment
-- **THEN** all LLM calls SHALL route through the OpenAI API
-
-#### Scenario: Copilot SDK selected
-- **WHEN** `OPENAI_API_KEY` is absent and `GITHUB_TOKEN` is set
-- **THEN** all LLM calls SHALL route through the GitHub Copilot SDK using a fine-grained PAT
+#### Scenario: Aspirational language preserved in evidence
+- **WHEN** a speaker says "I'd love to see us build something that..."
+- **THEN** `EvidenceSummary` SHALL reflect the future/aspirational framing rather than
+  rephrasing it as a present-tense statement
