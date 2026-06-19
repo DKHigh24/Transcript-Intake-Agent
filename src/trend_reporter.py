@@ -194,6 +194,7 @@ def generate_weekly_report(
     meeting_date: date,
     out_path: str,
     week_rows: list[dict] | None = None,
+    triage_rows: list[dict] | None = None,
 ) -> str:
     """
     Generate the weekly report using the canonical opportunity-report layout
@@ -203,17 +204,49 @@ def generate_weekly_report(
 
     `week_rows` are this week's full classified rows; when omitted they are
     reconstructed from the history snapshots for the meeting date.
+    `triage_rows` are low-confidence / excess rows excluded from primary surfaces.
     """
     a = weekly_analysis(history, meeting_date)
     if week_rows is None:
         week_rows = [snap for _, snap in entries_for_date(history, a["date"])]
 
+    triage_rows = triage_rows or []
+    n_suppressed = len(triage_rows)
+
     extra_nav = "<div class=\"nav-tab\" onclick=\"showTab('trends')\">📈 Trends</div>"
     section, scripts = _build_trends_tab(a)
 
+    # Triage section (collapsible, omitted when empty)
+    triage_section = ""
+    if n_suppressed:
+        triage_cards = "".join(
+            f'<div class="triage-card"><div class="t">{_esc(r.get("Title",""))}</div>'
+            f'<p>{_esc(r.get("EvidenceSummary",""))}</p>'
+            f'<p class="src">Reason: {_esc(r.get("_triage_reason","low confidence"))}</p></div>'
+            for r in triage_rows
+        )
+        triage_section = f"""
+<details id="triage-section" style="margin-top:24px">
+  <summary style="cursor:pointer;font-size:14px;font-weight:600;color:#7B3F00;padding:10px 0">
+    ⚠ Triage / Low Confidence ({n_suppressed} candidates suppressed)
+  </summary>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-top:12px">
+    {triage_cards}
+  </div>
+</details>
+<style>
+.triage-card{{background:#FFF8F0;border:1px solid #E8C99A;border-radius:10px;padding:14px;}}
+.triage-card .t{{font-weight:600;font-size:14px;margin-bottom:6px;color:#7B3F00;}}
+.triage-card p{{font-size:12px;color:#5C4033;margin:4px 0;}}
+.triage-card .src{{font-style:italic;color:#9E6B3F;}}
+</style>"""
+
     generated = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    suppressed_note = f", {n_suppressed} suppressed (low confidence)" if n_suppressed else ""
     header_sub = (f"Weekly Report &middot; {_esc(a['week'])} &middot; "
-                  f"Meeting {_esc(a['date'])} &middot; Generated {generated}")
+                  f"Meeting {_esc(a['date'])} &middot; "
+                  f"{a['total']} opportunities identified{suppressed_note} &middot; "
+                  f"Generated {generated}")
 
     html_out = build_report_html(
         week_rows,
@@ -221,13 +254,14 @@ def generate_weekly_report(
         report_title=f"Electronics AI Working Group — Weekly Report {a['date']}",
         header_sub=header_sub,
         extra_nav=extra_nav,
-        extra_sections=section,
+        extra_sections=section + triage_section,
         extra_scripts=scripts,
     )
 
     Path(out_path).parent.mkdir(parents=True, exist_ok=True)
     Path(out_path).write_text(html_out, encoding="utf-8")
-    print(f"[trend] weekly report ({a['total']} opps) -> {out_path}")
+    suppressed_log = f", {n_suppressed} suppressed" if n_suppressed else ""
+    print(f"[trend] weekly report ({a['total']} opps{suppressed_log}) -> {out_path}")
     return out_path
 
 

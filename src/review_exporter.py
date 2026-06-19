@@ -84,13 +84,16 @@ def _format_cell_value(value) -> str:
 def export_review_workbook(
     rows: list[dict],
     output_path: str = "output/review_rows.xlsx",
+    triage_rows: list[dict] | None = None,
 ) -> None:
     """
     Write classified rows to a formatted Excel workbook.
+    Primary rows go to the main "Opportunities" sheet.
+    triage_rows (low confidence / session cap excess) go to a second "Triage" sheet.
     """
     wb = Workbook()
     ws = wb.active
-    ws.title = "AI Opportunities"
+    ws.title = "Opportunities"
 
     # Write header row
     for col_idx, col_name in enumerate(REVIEW_COLUMNS, start=1):
@@ -128,10 +131,41 @@ def export_review_workbook(
             max_len = max(max_len, min(len(val), 60))
         ws.column_dimensions[get_column_letter(col_idx)].width = max(12, max_len + 2)
 
-    # Freeze top row
     ws.freeze_panes = "A2"
+
+    # ── Triage sheet ─────────────────────────────────────────────────────────
+    if triage_rows:
+        TRIAGE_HEADER_FILL = PatternFill("solid", fgColor="7B3F00")
+        wt = wb.create_sheet(title="Triage")
+        for col_idx, col_name in enumerate(REVIEW_COLUMNS, start=1):
+            cell = wt.cell(row=1, column=col_idx, value=col_name)
+            cell.fill = TRIAGE_HEADER_FILL
+            cell.font = HEADER_FONT
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = THIN_BORDER
+        wt.row_dimensions[1].height = 36
+
+        for row_idx, row_data in enumerate(triage_rows, start=2):
+            for col_idx, col_name in enumerate(REVIEW_COLUMNS, start=1):
+                raw = row_data.get(col_name)
+                value = " | ".join(raw) if col_name == "_validation_warnings" and isinstance(raw, list) \
+                    else _format_cell_value(raw)
+                cell = wt.cell(row=row_idx, column=col_idx, value=value)
+                cell.alignment = Alignment(vertical="top", wrap_text=True)
+                cell.border = THIN_BORDER
+                if row_idx % 2 == 0:
+                    cell.fill = ALT_ROW_FILL
+
+        for col_idx, col_name in enumerate(REVIEW_COLUMNS, start=1):
+            max_len = len(col_name)
+            for row_data in triage_rows:
+                val = _format_cell_value(row_data.get(col_name))
+                max_len = max(max_len, min(len(val), 60))
+            wt.column_dimensions[get_column_letter(col_idx)].width = max(12, max_len + 2)
+        wt.freeze_panes = "A2"
 
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
     wb.save(str(out))
-    print(f"[exporter] {len(rows)} rows -> {output_path}")
+    triage_note = f" + {len(triage_rows)} triage" if triage_rows else ""
+    print(f"[exporter] {len(rows)} rows{triage_note} -> {output_path}")

@@ -585,13 +585,15 @@ def build_report_html(
 def generate_report(
     classified_path: str = str(_CLASSIFIED),
     output_path: str = str(_OUTPUT),
+    triage_rows: list[dict] | None = None,
 ) -> str:
     rows = json.loads(Path(classified_path).read_text(encoding="utf-8"))
     html = build_report_html(rows)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     Path(output_path).write_text(html, encoding="utf-8")
-    print(f"[report] {len(rows)} rows -> {output_path}")
+    triage_note = f" + {len(triage_rows)} triage" if triage_rows else ""
+    print(f"[report] {len(rows)} rows{triage_note} -> {output_path}")
     return output_path
 
 

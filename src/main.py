@@ -27,14 +27,19 @@ Usage:
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
+
+from dotenv import load_dotenv
+load_dotenv()
 
 from transcript_reader import read_transcript
 from transcript_cleaner import clean_paragraphs
 from transcript_chunker import chunk_transcript
 from candidate_detector import detect_candidates
+from candidate_deduplicator import deduplicate_candidates
 from classifier import classify_candidates
 from validators import validate_all_rows
 from review_exporter import export_review_workbook
@@ -54,6 +59,10 @@ REVIEW_PATH = str(OUTPUT_DIR / "review_rows.xlsx")
 PAYLOAD_PATH = str(OUTPUT_DIR / "sharepoint_payload.json")
 
 MODES = ["dry-run", "extract", "classify", "payload", "push", "weekly", "monthly", "rebuild"]
+
+# ── Configurable thresholds (from .env, with defaults) ───────────────────────
+_DEDUP_THRESHOLD = float(os.getenv("DEDUP_SIMILARITY_THRESHOLD", "0.72"))
+_MAX_CANDIDATES = int(os.getenv("MAX_CANDIDATES_PER_SESSION", "20"))
 
 
 def run_dry_run(docx_path: str) -> list[dict]:
@@ -82,7 +91,45 @@ def run_extract(docx_path: str, mock: bool = False) -> list[dict]:
     chunks = run_dry_run(docx_path)
     print("\n=== Step 4: Extract candidates ===")
     candidates = detect_candidates(chunks, CANDIDATES_PATH)
+
+    print("\n=== Step 4b: Deduplicate candidates ===")
+    pre_count = len(candidates)
+    candidates = deduplicate_candidates(candidates, threshold=_DEDUP_THRESHOLD)
+    post_count = len(candidates)
+    print(f"  {pre_count} -> {post_count} candidates after dedup (threshold={_DEDUP_THRESHOLD})")
+
+    if post_count > _MAX_CANDIDATES:
+        print(f"[warning] {post_count} candidates exceed MAX_CANDIDATES_PER_SESSION={_MAX_CANDIDATES}; "
+              f"excess will be routed to Triage")
+        # Tag lowest-confidence excess candidates for triage routing
+        conf_order = {"Low": 0, "Medium": 1, "High": 2}
+        sorted_candidates = sorted(candidates, key=lambda c: conf_order.get(c.get("confidence", "Medium"), 1))
+        for c in sorted_candidates[:post_count - _MAX_CANDIDATES]:
+            c["_triage_reason"] = "exceeds_session_cap"
+
+    # Persist deduped candidates
+    Path(CANDIDATES_PATH).write_text(json.dumps(candidates, indent=2, ensure_ascii=False), encoding="utf-8")
     return candidates
+
+
+def _split_rows(rows: list[dict], include_low_confidence: bool = False) -> tuple[list[dict], list[dict]]:
+    """
+    Split classified rows into (primary_rows, triage_rows).
+
+    primary_rows  — Medium/High confidence + not tagged with _triage_reason
+    triage_rows   — Low confidence OR tagged with _triage_reason (session cap excess)
+
+    When include_low_confidence=True all rows go to primary_rows.
+    """
+    if include_low_confidence:
+        return rows, []
+    primary, triage = [], []
+    for r in rows:
+        if r.get("_triage_reason") or r.get("ConfidenceLevel") == "Low":
+            triage.append(r)
+        else:
+            primary.append(r)
+    return primary, triage
 
 
 def run_classify(docx_path: str, mock: bool = False) -> list[dict]:
@@ -113,7 +160,7 @@ def run_classify(docx_path: str, mock: bool = False) -> list[dict]:
     return validated
 
 
-def run_payload(docx_path: str, mock: bool = False) -> list[dict]:
+def run_payload(docx_path: str, mock: bool = False, include_low_confidence: bool = False) -> list[dict]:
     if mock:
         rows = run_classify(docx_path, mock=True)
     elif Path(CLASSIFIED_PATH).exists():
@@ -122,19 +169,28 @@ def run_payload(docx_path: str, mock: bool = False) -> list[dict]:
     else:
         rows = run_classify(docx_path)
 
+    print("\n=== Step 5c: Confidence floor filter ===")
+    primary_rows, triage_rows = _split_rows(rows, include_low_confidence)
+    if triage_rows:
+        print(f"  {len(primary_rows)} primary rows, {len(triage_rows)} routed to Triage "
+              f"(low confidence or session cap excess)")
+    else:
+        print(f"  {len(primary_rows)} rows — no triage rows")
+
     print("\n=== Step 6: Export review workbook ===")
-    export_review_workbook(rows, REVIEW_PATH)
+    export_review_workbook(primary_rows, REVIEW_PATH, triage_rows=triage_rows)
 
     print("\n=== Step 7: Build SharePoint payload ===")
-    build_sharepoint_payload(rows, PAYLOAD_PATH)
+    build_sharepoint_payload(primary_rows, PAYLOAD_PATH)
 
     print("\n=== Step 8: Generate HTML report ===")
-    generate_report(CLASSIFIED_PATH, str(Path("output") / "ai_opportunity_report.html"))
-    return rows
+    generate_report(CLASSIFIED_PATH, str(Path("output") / "ai_opportunity_report.html"),
+                    triage_rows=triage_rows)
+    return primary_rows, triage_rows
 
 
-def run_push(docx_path: str, mock: bool = False) -> None:
-    run_payload(docx_path, mock=mock)
+def run_push(docx_path: str, mock: bool = False, include_low_confidence: bool = False) -> None:
+    run_payload(docx_path, mock=mock, include_low_confidence=include_low_confidence)
     payload = json.loads(Path(PAYLOAD_PATH).read_text(encoding="utf-8"))
 
     print("\n=== Step 8: Push to Power Automate ===")
@@ -205,7 +261,8 @@ def rebuild_all_reports(history: list[dict]) -> None:
         print(f"[rebuild] upcoming presentation -> {pres_path}")
 
 
-def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = None) -> None:
+def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = None,
+               include_low_confidence: bool = False) -> None:
     """Process a week's transcript, archive it, ingest into history, build weekly report."""
 
     # Always clear stale intermediate cache so a new transcript is never contaminated
@@ -215,7 +272,8 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
             Path(stale).unlink()
             print(f"[main] cleared stale cache: {stale}")
 
-    rows = run_payload(docx_path, mock=mock)
+    primary_rows, triage_rows = run_payload(docx_path, mock=mock,
+                                             include_low_confidence=include_low_confidence)
 
     meeting_date = period_utils.resolve_meeting_date(docx_path or "", override_date)
     period = period_utils.period_info(meeting_date)
@@ -229,7 +287,7 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
     print(f"  archived classified rows, workbook, payload -> {archive_dir}")
 
     print("\n=== Step 9b: Update master opportunities workbook ===")
-    update_master(rows, period["date"])
+    update_master(primary_rows, period["date"])
 
     print("\n=== Step 10: Ingest into opportunity history ===")
     # Snapshot the existing maximum date BEFORE ingest to detect back-dating.
@@ -239,7 +297,7 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
     )
     max_existing_date = existing_dates[-1] if existing_dates else None
 
-    history = ingest_week(rows, meeting_date)
+    history = ingest_week(primary_rows, meeting_date)
     print(f"  history now tracks {len(history)} unique opportunities")
 
     # If the new transcript is earlier than (or equal to) the latest existing week,
@@ -252,7 +310,8 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
     else:
         print("\n=== Step 11: Generate weekly trend report ===")
         weekly_path = str(archive_dir / "weekly_report.html")
-        generate_weekly_report(history, meeting_date, weekly_path, week_rows=rows)
+        generate_weekly_report(history, meeting_date, weekly_path,
+                               week_rows=primary_rows, triage_rows=triage_rows)
 
         # Also build the rolling monthly report so it stays current.
         monthly_path = str(period_utils.monthly_report_path(period["month"]))
@@ -263,7 +322,7 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
 
     print("\n=== Step 12: Generate upcoming meeting presentation ===")
     from presentation_builder import build_meeting_presentation
-    pres_path = build_meeting_presentation(history, meeting_date, last_week_rows=rows)
+    pres_path = build_meeting_presentation(history, meeting_date, last_week_rows=primary_rows)
     print(f"[done] Meeting presentation: {pres_path}")
 
 
@@ -323,6 +382,12 @@ def main() -> None:
         "--month",
         help="Target month for --mode monthly (YYYY-MM). Defaults to most recent in history.",
     )
+    parser.add_argument(
+        "--include-low-confidence",
+        action="store_true",
+        dest="include_low_confidence",
+        help="Include Low-confidence rows on all primary surfaces (overrides confidence floor filter)",
+    )
     args = parser.parse_args()
 
     needs_input = args.mode not in ("monthly", "rebuild")
@@ -347,15 +412,18 @@ def main() -> None:
             run_classify(args.input, mock=args.mock)
             print(f"\n[done] Classified rows written to {CLASSIFIED_PATH}")
         case "payload":
-            run_payload(args.input, mock=args.mock)
+            run_payload(args.input, mock=args.mock,
+                        include_low_confidence=args.include_low_confidence)
             print(f"\n[done] Review workbook: {REVIEW_PATH}")
             print(f"[done] SharePoint payload: {PAYLOAD_PATH}")
             print(f"[done] HTML report: output/ai_opportunity_report.html")
         case "push":
-            run_push(args.input, mock=args.mock)
+            run_push(args.input, mock=args.mock,
+                     include_low_confidence=args.include_low_confidence)
             print("\n[done] Push complete")
         case "weekly":
-            run_weekly(args.input, mock=args.mock, override_date=args.date)
+            run_weekly(args.input, mock=args.mock, override_date=args.date,
+                       include_low_confidence=args.include_low_confidence)
         case "monthly":
             run_monthly(args.input, override_date=args.date, month=args.month)
         case "rebuild":
