@@ -165,3 +165,28 @@ def update_master(rows: list[dict], meeting_date: str) -> Path:
     total = (ws.max_row - 1) if ws.max_row > 1 else len(stamped)
     print(f"[master] {len(stamped)} rows added for {meeting_date} -> {MASTER_PATH} ({total} total rows)")
     return MASTER_PATH
+
+
+def rebuild_master() -> Path:
+    """
+    Rebuild master_opportunities.xlsx from scratch using all archived
+    classified_rows.json files.  Useful after a back-fill operation.
+    """
+    import json
+    from pathlib import Path as _Path
+
+    weeks_dir = _Path("output/weeks")
+    week_dirs = sorted(weeks_dir.iterdir()) if weeks_dir.exists() else []
+
+    if MASTER_PATH.exists():
+        MASTER_PATH.unlink()
+
+    for week_dir in week_dirs:
+        rows_file = week_dir / "classified_rows.json"
+        if not rows_file.exists():
+            continue
+        rows = json.loads(rows_file.read_text(encoding="utf-8"))
+        update_master(rows, week_dir.name)
+
+    print(f"[master] rebuild complete -> {MASTER_PATH}")
+    return MASTER_PATH
