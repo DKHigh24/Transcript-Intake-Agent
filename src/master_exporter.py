@@ -186,7 +186,12 @@ def rebuild_master() -> Path:
         if not rows_file.exists():
             continue
         rows = json.loads(rows_file.read_text(encoding="utf-8"))
-        update_master(rows, week_dir.name)
+        # Apply same confidence floor / triage split used during weekly runs
+        primary_rows = [
+            r for r in rows
+            if not r.get("_triage_reason") and r.get("ConfidenceLevel") != "Low"
+        ]
+        update_master(primary_rows, week_dir.name)
 
     print(f"[master] rebuild complete -> {MASTER_PATH}")
     return MASTER_PATH

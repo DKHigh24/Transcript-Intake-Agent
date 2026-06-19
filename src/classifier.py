@@ -95,6 +95,9 @@ def classify_candidates(
             row.setdefault("PrimaryDataSource", "Meeting Transcript")
             row.setdefault("ScheduleHealth", "Not Started")
             row.setdefault("DataSensitivity", "Internal")
+            # Propagate triage tag from candidate (set by session cap guard in main.py)
+            if "_triage_reason" in candidate:
+                row["_triage_reason"] = candidate["_triage_reason"]
             classified.append(row)
         except Exception as e:
             print(f"  [warn] classification failed for '{title}': {e}")
