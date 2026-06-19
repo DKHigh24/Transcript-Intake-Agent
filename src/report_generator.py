@@ -104,7 +104,7 @@ def _build_cards_html(rows: list[dict]) -> str:
         conf_class = {"High": "conf-high", "Medium": "conf-med", "Low": "conf-low"}.get(confidence, "conf-med")
 
         cards.append(f"""
-        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-signal="{signal}">
+        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-signal="{signal}" data-maturity="{maturity}">
           <div class="card-header" style="border-left: 5px solid {bucket_color};">
             <div class="card-title">{title}</div>
             <div class="card-badges">
@@ -235,7 +235,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .section.active {{ display:block; }}
 
   /* ── Filters ── */
-  .filters {{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:24px; }}
+  .filters {{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }}
   .filter-btn {{
     padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
     background: #fff; font-size: 12px; font-weight: 600; cursor: pointer;
@@ -244,6 +244,20 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .filter-btn:hover, .filter-btn.active {{
     background: var(--blue); color: #fff; border-color: var(--blue);
   }}
+
+  /* ── Maturity filter bar ── */
+  .maturity-filters {{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px;
+    padding: 10px 14px; background:#F0F4FF; border-radius:10px; border:1px solid #C7D4F0; }}
+  .maturity-btn {{
+    padding: 5px 14px; border-radius: 20px; border: 1.5px solid transparent;
+    font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s;
+    background: #fff; color: var(--muted);
+  }}
+  .maturity-btn.active[data-val="Delivered / Active Today"]  {{ background:#059669; color:#fff; border-color:#059669; }}
+  .maturity-btn.active[data-val="In Progress / Piloting"]    {{ background:#2563EB; color:#fff; border-color:#2563EB; }}
+  .maturity-btn.active[data-val="Aspirational"]              {{ background:#D97706; color:#fff; border-color:#D97706; }}
+  .maturity-btn.active[data-val="Unknown"]                   {{ background:#6B7280; color:#fff; border-color:#6B7280; }}
+  .maturity-btn.active {{ background: var(--blue); color:#fff; border-color:var(--blue); }}
 
   /* ── Cards ── */
   .cards-grid {{ display:grid; grid-template-columns: repeat(auto-fill, minmax(400px, 1fr)); gap:20px; }}
@@ -365,6 +379,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     {bucket_filter_btns}
     {type_filter_btns}
   </div>
+  <div class="maturity-filters" id="maturity-filters">
+    <span style="font-size:12px;font-weight:700;color:var(--muted);align-self:center">Maturity:</span>
+    <button class="maturity-btn active" onclick="filterMaturity('all', this)">All</button>
+    {maturity_filter_btns}
+  </div>
   <div class="cards-grid" id="cards-grid">
     {cards_html}
   </div>
@@ -387,6 +406,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="chart-card">
       <div class="chart-title">By Signal Strength</div>
       <div class="chart-wrap"><canvas id="chartSignal"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">By Maturity Signal</div>
+      <div class="chart-wrap"><canvas id="chartMaturity"></canvas></div>
     </div>
 
     <div class="chart-card">
@@ -441,21 +465,41 @@ function showTab(name) {{
 }}
 
 // ── Card filter ──────────────────────────────────────────────────────────────
-function filterCards(value, btn) {{
-  document.querySelectorAll('#card-filters .filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+let _activeMaturity = 'all';
+let _activeFilter = 'all';
+
+function _applyFilters() {{
   document.querySelectorAll('#cards-grid .card').forEach(card => {{
-    if (value === 'all') {{ card.style.display = ''; return; }}
-    const matches = card.dataset.bucket === value || card.dataset.type === value || card.dataset.signal === value;
-    card.style.display = matches ? '' : 'none';
+    const matchFilter = _activeFilter === 'all' ||
+      card.dataset.bucket === _activeFilter ||
+      card.dataset.type === _activeFilter ||
+      card.dataset.signal === _activeFilter;
+    const matchMaturity = _activeMaturity === 'all' ||
+      card.dataset.maturity === _activeMaturity;
+    card.style.display = (matchFilter && matchMaturity) ? '' : 'none';
   }});
 }}
 
+function filterCards(value, btn) {{
+  document.querySelectorAll('#card-filters .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _activeFilter = value;
+  _applyFilters();
+}}
+
+function filterMaturity(value, btn) {{
+  document.querySelectorAll('#maturity-filters .maturity-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _activeMaturity = value;
+  _applyFilters();
+}}
+
 // ── Charts ───────────────────────────────────────────────────────────────────
-const bucketData  = {bucket_data};
-const typeData    = {type_data};
-const signalData  = {signal_data};
-const levelData   = {level_data};
+const bucketData   = {bucket_data};
+const typeData     = {type_data};
+const signalData   = {signal_data};
+const levelData    = {level_data};
+const maturityData = {maturity_data};
 
 function makeDonut(id, data) {{
   new Chart(document.getElementById(id), {{
@@ -492,10 +536,11 @@ function makeBar(id, data) {{
   }});
 }}
 
-makeDonut('chartBucket', bucketData);
-makeDonut('chartType',   typeData);
-makeBar('chartSignal',   signalData);
-makeBar('chartLevel',    levelData);
+makeDonut('chartBucket',   bucketData);
+makeDonut('chartType',     typeData);
+makeBar('chartSignal',     signalData);
+makeBar('chartLevel',      levelData);
+makeDonut('chartMaturity', maturityData);
 {extra_scripts}
 </script>
 </body>
@@ -539,10 +584,16 @@ def build_report_html(
     avg_readiness= _score_avg(rows, "ReadinessScore")
 
     # Chart data
-    bucket_data = json.dumps(_bar_chart_data(rows, "OperatingBucket", BUCKET_COLORS))
-    type_data   = json.dumps(_bar_chart_data(rows, "AIUseCaseType",   TYPE_COLORS))
-    signal_data = json.dumps(_bar_chart_data(rows, "SignalStrength",  SIGNAL_COLORS))
-    level_data  = json.dumps(_bar_chart_data(rows, "LevelOfAnalysis", LEVEL_COLORS))
+    bucket_data  = json.dumps(_bar_chart_data(rows, "OperatingBucket", BUCKET_COLORS))
+    type_data    = json.dumps(_bar_chart_data(rows, "AIUseCaseType",   TYPE_COLORS))
+    signal_data  = json.dumps(_bar_chart_data(rows, "SignalStrength",  SIGNAL_COLORS))
+    level_data   = json.dumps(_bar_chart_data(rows, "LevelOfAnalysis", LEVEL_COLORS))
+    maturity_data = json.dumps(_bar_chart_data(rows, "MaturitySignal", {
+        "Delivered / Active Today": "#059669",
+        "In Progress / Piloting":   "#2563EB",
+        "Aspirational":             "#D97706",
+        "Unknown":                  "#6B7280",
+    }))
 
     # Filter buttons
     buckets = sorted({r.get("OperatingBucket", "") for r in rows if r.get("OperatingBucket")})
@@ -554,6 +605,27 @@ def build_report_html(
     type_btns = " ".join(
         f'<button class="filter-btn" onclick="filterCards(\'{t}\', this)">{t}</button>'
         for t in types
+    )
+
+    # Maturity filter buttons (ordered by signal importance, with counts)
+    _maturity_order = [
+        "Delivered / Active Today", "In Progress / Piloting", "Aspirational", "Unknown"
+    ]
+    _maturity_color_map = {
+        "Delivered / Active Today": "#059669",
+        "In Progress / Piloting":   "#2563EB",
+        "Aspirational":             "#D97706",
+        "Unknown":                  "#6B7280",
+    }
+    _maturity_counts = {}
+    for r in rows:
+        m = r.get("MaturitySignal") or "Unknown"
+        _maturity_counts[m] = _maturity_counts.get(m, 0) + 1
+    maturity_btns = " ".join(
+        f'<button class="maturity-btn" data-val="{m}" '
+        f'style="border-color:{_maturity_color_map.get(m, "#6B7280")};color:{_maturity_color_map.get(m, "#6B7280")}" '
+        f'onclick="filterMaturity(\'{m}\', this)">{m} ({_maturity_counts.get(m, 0)})</button>'
+        for m in _maturity_order if _maturity_counts.get(m, 0) > 0
     )
 
     return HTML_TEMPLATE.format(
@@ -572,8 +644,10 @@ def build_report_html(
         type_data=type_data,
         signal_data=signal_data,
         level_data=level_data,
+        maturity_data=maturity_data,
         bucket_filter_btns=bucket_btns,
         type_filter_btns=type_btns,
+        maturity_filter_btns=maturity_btns,
         cards_html=_build_cards_html(rows),
         table_rows=_build_table_rows(rows),
         extra_nav=extra_nav,
