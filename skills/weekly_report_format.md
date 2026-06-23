@@ -22,6 +22,146 @@ build_report_html(
 
 - `generate_report()` (single transcript) calls `build_report_html(rows)` with no extras.
 - `generate_weekly_report()` in `src/trend_reporter.py` calls `build_report_html(...)`
+  with `week_rows` and injects a **Trends tab** and a **Progress tab** via the `extra_*` parameters.
+
+Any report that shows opportunities must go through `build_report_html`. Never
+hand-roll a separate HTML skeleton, palette, or tab system for opportunity output.
+
+## Required layout (do not change)
+
+A single self-contained HTML file (Chart.js loaded from the jsDelivr CDN, no build
+step, no local assets) containing, in order:
+
+1. **Header** — `⚡ Electronics AI Working Group` title, a configurable sub-line, a
+   right-aligned meta block (`Source / Status: All Needs Review / Human Review Required`),
+   and a KPI row: Opportunities, High Signal, Action/Both, Avg Value Score, High Confidence.
+2. **Nav tabs** — `📋 Opportunity Cards`, `📊 Analytics`, `🗂 Full Table`, then any extra tabs.
+3. **Opportunity Cards tab** — maturity filter bar + standard filter buttons (All + per-bucket + per-type),
+   and a `.cards-grid` of `.card` elements (`data-bucket` / `data-type` / `data-signal` / `data-maturity`
+   / `data-ado-status` for filtering). Each card shows an **ADO chip** (colored state badge + link to the
+   work item) when `ADOWorkItemId` is present.
+4. **Analytics tab** — donut charts (`chartBucket`, `chartType`, `chartMaturity`), bar charts
+   (`chartSignal`, `chartLevel`), and the Average Scores panel.
+5. **Full Table tab** — the 13-column table (Title, Bucket, Type, Process Stage,
+   Level, Signal, Tool, Owner/SME, Val, Eff, Risk, Ready, Conf).
+6. **Footer** — draft disclaimer: all rows require human review before SharePoint promotion.
+7. **Scripts** — `showTab()`, `filterCards()`, `_applyFilters()`, `filterMaturity()`,
+   `makeDonut()`, `makeBar()`, the built-in chart instantiations, then any `extra_scripts`.
+
+The interactive behavior (tab switching, card filtering by both bucket and maturity, charts) must keep working exactly as in the original.
+
+## Color palette (fixed)
+
+Use the palette already defined in `report_generator.py`: `BUCKET_COLORS`,
+`TYPE_COLORS`, `SIGNAL_COLORS`, `LEVEL_COLORS`, `MATURITY_COLORS`, `ADO_STATE_COLORS`,
+and the CSS `:root` variables (`--blue #4A6FA5`, `--teal #47A8BD`, `--green #5DB7A0`,
+`--amber #E8A838`, `--red #C0604D`, `--dark #1E2A3A`, etc.). Do not introduce new brand colors.
+
+## ADO chip on cards
+
+Each `.card` element renders a colored state chip when `ADOWorkItemId` is not null:
+
+```html
+<div class="card-title-row">
+  <span class="card-title">…</span>
+  <a class="ado-chip" href="<ADOUrl>" target="_blank" style="border-color:<color>">
+    <icon> <state> · #<id>
+  </a>
+</div>
+```
+
+State colors are defined in `ADO_STATE_COLORS` and `ADO_STATE_ICONS` for both the
+Basic process template (`To Do`, `Doing`, `Done`) and Agile fallbacks
+(`New`, `Active`, `Resolved`, `Closed`).
+
+## The weekly "Trends" tab
+
+The weekly report adds longitudinal insight as a **4th tab** — it never alters
+the first three tabs. It is built in `trend_reporter._build_trends_tab(a)` from
+`weekly_analysis(history, meeting_date)` and contains:
+
+- 5 trend KPIs: Opportunities This Week, New This Week, Carried Over, Escalating Signal, Tracked All-Time.
+- "New This Week" cards and "Carried Over" cards (with week-over-week Signal/Level
+  movement badges: `tb-up` / `tb-down` / `tb-flat`, plus `tb-new` / `tb-recur`).
+- A "Opportunities per Week" line chart (`cTrend`).
+
+## The weekly "Progress" tab — ADO status rollup
+
+The weekly report adds a **5th Progress tab** that closes the loop between transcript
+discussions and actual execution. It is built in `report_generator._build_progress_tab()`
+and injected via `build_progress_tab_injection(all_historical_rows)`.
+
+The tab:
+- Collects all ADO-linked rows across **all** archived weeks
+- Groups them by current ADO state: **🔵 Doing**, **⬜ To Do**, **✅ Done**
+- Highlights **"🔄 Moved This Week"** at the top — items whose `ADOLastUpdated` is within 7 days
+- For each item shows: ADO # (live link), title, assignee, iteration, last-updated date, week raised
+
+Data source: `all_historical_rows` passed from `generate_weekly_report()`, which loads
+every `output/weeks/*/classified_rows.json` at render time. The ADO fields are already
+up-to-date because Step 0 sync ran before this report was generated.
+
+## How to add another tab (pattern to follow)
+
+1. Build the section HTML with `id="tab-<name>"` and class `section`.
+2. Add a nav button: `<div class="nav-tab" onclick="showTab('<name>')">…</div>` via `extra_nav`.
+3. Put any chart/JS in `extra_scripts` (it runs after the built-in charts; Chart.js is loaded).
+4. Pass all three through `build_report_html(..., extra_nav=, extra_sections=, extra_scripts=)`.
+5. Keep new CSS scoped (prefixed classes in an inline `<style>` inside the section)
+   so the canonical template is never edited for one-off tabs.
+
+## Constraints
+
+- Self-contained single `.html` file; only external dependency is the Chart.js CDN script.
+- No new Python dependencies.
+- All output remains **draft / Needs Review**; keep the human-review footer.
+- Do not send transcripts to the model to build reports — reports render from
+  `classified_rows.json` / history snapshots only.
+- `header_sub` and other injected values must not contain `{`/`}` that would break
+  `str.format` substitution in the template.
+- The Progress tab renders even when no items have been pushed to ADO — it shows
+  a friendly "No items pushed to ADO yet" message rather than an empty tab.
+
+## Verification checklist
+
+After changing report code, regenerate a report and confirm:
+
+- 5 nav tabs present for weekly: cards, charts, table, trends, progress.
+- `showTab('progress')` exists and `id="tab-progress"` section is populated.
+- ADO chips appear on cards that have `ADOWorkItemId`; no chips on unlinked cards.
+- Maturity filter bar renders with correct color-coded buttons and counts.
+- Card count and table-row count equal the number of opportunities.
+- `chartBucket` (Analytics) and `cTrend` (Trends) canvases exist.
+- No leftover unescaped `{placeholder}` text remains in the HTML.
+- The single-transcript report still renders with **no** trends or progress tab.
+
+Offline regeneration (no API key needed):
+
+```powershell
+$env:PYTHONIOENCODING = "utf-8"
+.\.venv\Scripts\python.exe src\main.py --mode rebuild
+# Then open output/weeks/2026-06-17/weekly_report.html
+```
+
+
+## Single source of truth
+
+`src/report_generator.py` owns the canonical layout via:
+
+```python
+build_report_html(
+    rows,                       # list of classified opportunity rows
+    generated_date=None,        # defaults to now
+    report_title=...,           # <title> text
+    header_sub=None,            # header sub-line (defaults to "AI Opportunity Intake Report · Generated ...")
+    extra_nav="",               # extra nav-tab buttons (HTML)
+    extra_sections="",          # extra .section blocks (HTML)
+    extra_scripts="",           # extra JS appended after built-in chart setup
+) -> str
+```
+
+- `generate_report()` (single transcript) calls `build_report_html(rows)` with no extras.
+- `generate_weekly_report()` in `src/trend_reporter.py` calls `build_report_html(...)`
   with `week_rows` and injects a **4th "Trends" tab** via the `extra_*` parameters.
 
 Any report that shows opportunities must go through `build_report_html`. Never

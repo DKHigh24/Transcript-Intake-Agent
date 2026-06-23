@@ -9,9 +9,11 @@ how to keep it running week to week.
   walkthrough of the whole system:
   - 🔄 an end-to-end **flowchart** (upload → read → clean → chunk → extract 🧠 →
     classify 🧠 → validate → workbook / payload / HTML → archive + history →
-    weekly report → monthly rollup → human review → opt-in SharePoint push),
+    weekly report → monthly rollup → human review → opt-in SharePoint push →
+    **opt-in ADO push → live ADO sync → Progress tab**),
   - 🧩 a stage-by-stage table (module + inputs/outputs + which steps use AI),
   - 📅 weekly operation, 🤖 the automatic folder watcher, 🗓 the monthly rollup,
+  - 🔗 ADO integration — how `--push-ado` closes the loop and how the weekly sync works,
   - 📂 the output layout, 🛠 a maintenance checklist + core rules, and
   - 🚑 a troubleshooting table.
 
@@ -42,5 +44,11 @@ xdg-open Overview/process_overview.html
 This is documentation, not code — update it whenever the pipeline changes
 (new stage, new mode, renamed module, changed output paths). The flowchart is a
 hand-built inline SVG inside `process_overview.html`; edit the `<rect>` / `<text>`
-/ `<path>` blocks in the `#flow` section to reflect new steps. Keep it consistent
-with the project `README.md` and `skills/weekly_report_format.md`.
+/ `<path>` blocks in the `#flow` section to reflect new steps.
+
+Key things to keep in sync with `README.md`:
+- Pipeline step list (currently Steps 0–12)
+- ADO integration description (Step 0 sync, Step 9c push, Progress tab)
+- Output layout (especially the new ADO columns AR–AX in `master_opportunities.xlsx`)
+- Command-line examples (especially `--push-ado` and `--sync`)
+- The weekly checklist in the "Keeping It Running" section

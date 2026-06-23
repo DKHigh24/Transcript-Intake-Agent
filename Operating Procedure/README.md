@@ -19,12 +19,13 @@ Invoke-Item ".\Operating Procedure\operating_manual.html"
 
 ## Sections covered
 
-1. Prerequisites (Python venv, OpenAI key, file naming)
+1. Prerequisites (Python venv, LLM backend, ADO credentials, file naming)
 2. Standard Run — new forward-dated transcript
 3. Back-Dated Transcripts — auto-rebuild behavior
-4. Running Without an OpenAI Key — manual classification workflow
+4. Running Without an OpenAI Key — GitHub Copilot SDK path
 5. Auto-Watcher — hands-free pipeline trigger
 6. Understanding the Outputs — all files explained
-7. Force Rebuild All Reports
-8. Troubleshooting — common errors and fixes
-9. Keeper Rules — what never to do
+7. ADO Integration — pushing opportunities and reading live status
+8. Force Rebuild All Reports
+9. Troubleshooting — common errors and fixes
+10. Keeper Rules — what never to do
