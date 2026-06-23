@@ -237,14 +237,17 @@ def rebuild_all_reports(history: list[dict]) -> None:
     # Rebuild master opportunities workbook from all archived weeks
     print("[rebuild] refreshing master opportunities workbook ...")
     from master_exporter import update_master as _update_master
-    for d in dates:
-        from datetime import datetime as _dt3
-        meeting_date_obj = _dt3.strptime(d, "%Y-%m-%d").date()
-        archive_dir = period_utils.week_archive_dir(meeting_date_obj)
-        archived_rows_path = archive_dir / "classified_rows.json"
-        if archived_rows_path.exists():
-            week_rows_m = json.loads(archived_rows_path.read_text(encoding="utf-8"))
-            _update_master(week_rows_m, d)
+    try:
+        for d in dates:
+            from datetime import datetime as _dt3
+            meeting_date_obj = _dt3.strptime(d, "%Y-%m-%d").date()
+            archive_dir = period_utils.week_archive_dir(meeting_date_obj)
+            archived_rows_path = archive_dir / "classified_rows.json"
+            if archived_rows_path.exists():
+                week_rows_m = json.loads(archived_rows_path.read_text(encoding="utf-8"))
+                _update_master(week_rows_m, d)
+    except PermissionError:
+        print("  ⚠️  master_opportunities.xlsx is open in Excel — close it and re-run to update")
 
     # Regenerate the upcoming session presentation from the latest meeting date.
     if dates:
@@ -262,8 +265,16 @@ def rebuild_all_reports(history: list[dict]) -> None:
 
 
 def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = None,
-               include_low_confidence: bool = False) -> None:
+               include_low_confidence: bool = False, push_ado: bool = False) -> None:
     """Process a week's transcript, archive it, ingest into history, build weekly report."""
+
+    # Step 0 — ADO status sync (read-only; silently skipped if ADO_PAT absent)
+    try:
+        import ado_client
+        print("\n=== Step 0: Sync ADO work item statuses ===")
+        ado_client.sync_all_weeks()
+    except Exception as e:
+        print(f"[ado] ⚠️  Sync skipped due to error: {e}")
 
     # Always clear stale intermediate cache so a new transcript is never contaminated
     # by artifacts from a previous run.
@@ -287,7 +298,40 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
     print(f"  archived classified rows, workbook, payload -> {archive_dir}")
 
     print("\n=== Step 9b: Update master opportunities workbook ===")
-    update_master(primary_rows, period["date"])
+    try:
+        update_master(primary_rows, period["date"])
+    except PermissionError:
+        print("  ⚠️  master_opportunities.xlsx is open in Excel — close it and re-run to update")
+
+    if push_ado:
+        print("\n=== Step 9c: Push new opportunities to ADO ===")
+        try:
+            import ado_client
+            if ado_client.is_configured():
+                epic_id = ado_client.get_or_create_epic()
+                if epic_id > 0:
+                    updated_rows = []
+                    for row in primary_rows:
+                        updated_rows.append(ado_client.push_work_item(row, epic_id))
+                    # Write ADO fields back to the archived classified_rows.json
+                    archived_classified = archive_dir / "classified_rows.json"
+                    if archived_classified.exists():
+                        existing = json.loads(archived_classified.read_text(encoding="utf-8"))
+                        id_to_ado = {r.get("Title"): r for r in updated_rows}
+                        for row in existing:
+                            pushed = id_to_ado.get(row.get("Title"))
+                            if pushed and pushed.get("ADOWorkItemId"):
+                                row["ADOWorkItemId"] = pushed["ADOWorkItemId"]
+                                row["ADOUrl"]        = pushed["ADOUrl"]
+                                row["ADOStatus"]     = pushed["ADOStatus"]
+                                row["ADOPushedAt"]   = pushed["ADOPushedAt"]
+                        archived_classified.write_text(
+                            json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8"
+                        )
+            else:
+                print("[ado] Skipping push — ADO_PAT not configured")
+        except Exception as e:
+            print(f"[ado] ⚠️  Push skipped due to error: {e}")
 
     print("\n=== Step 10: Ingest into opportunity history ===")
     # Snapshot the existing maximum date BEFORE ingest to detect back-dating.
@@ -388,6 +432,12 @@ def main() -> None:
         dest="include_low_confidence",
         help="Include Low-confidence rows on all primary surfaces (overrides confidence floor filter)",
     )
+    parser.add_argument(
+        "--push-ado",
+        action="store_true",
+        dest="push_ado",
+        help="Push newly classified primary rows to ADO as Issues after archiving (requires ADO_PAT in .env)",
+    )
     args = parser.parse_args()
 
     needs_input = args.mode not in ("monthly", "rebuild")
@@ -423,7 +473,8 @@ def main() -> None:
             print("\n[done] Push complete")
         case "weekly":
             run_weekly(args.input, mock=args.mock, override_date=args.date,
-                       include_low_confidence=args.include_low_confidence)
+                       include_low_confidence=args.include_low_confidence,
+                       push_ado=args.push_ado)
         case "monthly":
             run_monthly(args.input, override_date=args.date, month=args.month)
         case "rebuild":

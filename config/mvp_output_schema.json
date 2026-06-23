@@ -40,5 +40,12 @@
   "EvidenceSummary": "",
   "SourceSpeaker": "",
   "SourceTimestamp": "",
-  "ConfidenceLevel": "Medium"
+  "ConfidenceLevel": "Medium",
+  "ADOWorkItemId": null,
+  "ADOUrl": null,
+  "ADOStatus": null,
+  "ADOIteration": null,
+  "ADOAssignedTo": null,
+  "ADOLastUpdated": null,
+  "ADOPushedAt": null
 }

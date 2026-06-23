@@ -17,6 +17,7 @@ with the "copilot" scope enabled.
 import asyncio
 import json
 import os
+import threading
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -126,7 +127,30 @@ def _call_copilot(system_prompt: str, user_prompt: str) -> str:
             "No GitHub token found. Add GITHUB_TOKEN=<your-pat> to your .env file. "
             "Generate a PAT at https://github.com/settings/tokens with 'copilot' scope."
         )
-    return asyncio.run(_call_copilot_async(system_prompt, user_prompt))
+
+    # Run the async call in a daemon thread so we can apply a hard wall-clock
+    # timeout. asyncio.wait_for alone is insufficient — when it fires, the
+    # CopilotClient __aexit__ cleanup can itself block indefinitely.
+    # With daemon=True the thread is killed when the main process exits, so it
+    # never prevents forward progress.
+    result: list = [None]
+    error:  list = [None]
+
+    def _run():
+        try:
+            result[0] = asyncio.run(_call_copilot_async(system_prompt, user_prompt))
+        except Exception as e:
+            error[0] = e
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(timeout=150)          # hard 2.5-minute wall-clock timeout
+
+    if t.is_alive():
+        raise TimeoutError("Copilot SDK call timed out after 150 s (session hung)")
+    if error[0] is not None:
+        raise error[0]
+    return result[0]
 
 
 # ── Public interface ─────────────────────────────────────────────────────────

@@ -67,6 +67,13 @@ MASTER_COLUMNS = [
     "ReadinessScore",               # AO
     "SignalScore",                  # AP
     "WeekDate",                     # AQ — Power BI time slicer
+    "ADOWorkItemId",                # AR
+    "ADOUrl",                       # AS
+    "ADOStatus",                    # AT
+    "ADOAssignedTo",                # AU
+    "ADOIteration",                 # AV
+    "ADOLastUpdated",               # AW
+    "ADOPushedAt",                  # AX
 ]
 
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")

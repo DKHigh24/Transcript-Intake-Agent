@@ -9,7 +9,7 @@ Called automatically at end of payload/push modes, or standalone:
 
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from collections import Counter
 
@@ -43,6 +43,28 @@ MATURITY_COLORS = {
     "In Progress / Piloting":   "#2563EB",   # blue
     "Aspirational":             "#D97706",   # amber
     "Unknown":                  "#6B7280",   # gray
+}
+ADO_STATE_COLORS = {
+    # Basic process template states
+    "To Do":  "#6B7280",   # gray
+    "Doing":  "#2563EB",   # blue
+    "Done":   "#059669",   # green
+    # Agile/CMMI fallback states (kept for compatibility)
+    "New":      "#6B7280",
+    "Active":   "#2563EB",
+    "Resolved": "#059669",
+    "Closed":   "#374151",
+}
+ADO_STATE_ICONS = {
+    # Basic process template states
+    "To Do":  "⬜",
+    "Doing":  "🔵",
+    "Done":   "✅",
+    # Agile/CMMI fallback states
+    "New":      "⬜",
+    "Active":   "🔵",
+    "Resolved": "✅",
+    "Closed":   "⬛",
 }
 LEVEL_COLORS = {
     "Level 0 - Signal Capture":          "#e0e0e0",
@@ -95,18 +117,34 @@ def _build_cards_html(rows: list[dict]) -> str:
         value = r.get("ValueScore", "—")
         effort = r.get("EffortScore", "—")
         risk = r.get("RiskScore", "—")
+        ado_id     = r.get("ADOWorkItemId")
+        ado_url    = r.get("ADOUrl", "")
+        ado_status = r.get("ADOStatus") or "New"
 
-        bucket_color = _color_for(BUCKET_COLORS, bucket)
-        type_color = _color_for(TYPE_COLORS, use_type)
-        signal_color = _color_for(SIGNAL_COLORS, signal)
+        bucket_color  = _color_for(BUCKET_COLORS, bucket)
+        type_color    = _color_for(TYPE_COLORS, use_type)
+        signal_color  = _color_for(SIGNAL_COLORS, signal)
         maturity_color = MATURITY_COLORS.get(maturity, "#6B7280")
+        ado_color     = ADO_STATE_COLORS.get(ado_status, "#6B7280")
+        ado_icon      = ADO_STATE_ICONS.get(ado_status, "⬜")
 
         conf_class = {"High": "conf-high", "Medium": "conf-med", "Low": "conf-low"}.get(confidence, "conf-med")
 
+        ado_chip = ""
+        if ado_id:
+            ado_chip = (
+                f'<a class="ado-chip" href="{ado_url}" target="_blank" rel="noopener" '
+                f'style="border-color:{ado_color};color:{ado_color}" title="Open ADO #{ado_id}">'
+                f'{ado_icon} ADO #{ado_id} · {ado_status} 🔗</a>'
+            )
+
         cards.append(f"""
-        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-signal="{signal}" data-maturity="{maturity}">
+        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-signal="{signal}" data-maturity="{maturity}" data-ado-status="{ado_status if ado_id else ''}">
           <div class="card-header" style="border-left: 5px solid {bucket_color};">
-            <div class="card-title">{title}</div>
+            <div class="card-title-row">
+              <div class="card-title">{title}</div>
+              {ado_chip}
+            </div>
             <div class="card-badges">
               <span class="badge" style="background:{type_color}">{use_type}</span>
               <span class="badge" style="background:{signal_color}">{signal}</span>
@@ -268,6 +306,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .card:hover {{ box-shadow: 0 6px 20px rgba(0,0,0,.12); }}
   .card-header {{ padding: 16px 20px 14px; background: #fafbfd; border-bottom: 1px solid var(--border); }}
   .card-title {{ font-size: 15px; font-weight: 700; color: var(--dark); line-height: 1.3; }}
+  .card-title-row {{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }}
+  .ado-chip {{
+    display:inline-flex; align-items:center; gap:4px; white-space:nowrap;
+    font-size:11px; font-weight:600; padding:3px 10px; border-radius:20px;
+    border:1.5px solid; text-decoration:none; transition:opacity .15s;
+    flex-shrink:0;
+  }}
+  .ado-chip:hover {{ opacity:0.75; }}
   .card-badges {{ display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }}
   .badge {{
     display:inline-block; padding:3px 10px; border-radius:20px;
@@ -546,6 +592,112 @@ makeDonut('chartMaturity', maturityData);
 </body>
 </html>
 """
+
+
+def _build_progress_tab(all_historical_rows: list[dict]) -> str:
+    """
+    Build the HTML content for the Progress tab.
+    Groups all ADO-linked rows by status; highlights items updated within last 7 days.
+    """
+    ado_rows = [r for r in all_historical_rows if r.get("ADOWorkItemId")]
+    if not ado_rows:
+        return (
+            '<div style="padding:32px;text-align:center;color:var(--muted)">'
+            'No items have been pushed to ADO yet.</div>'
+        )
+
+    now = datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=7)
+
+    def _parse_dt(s):
+        if not s:
+            return None
+        try:
+            s = s.replace("Z", "+00:00")
+            return datetime.fromisoformat(s)
+        except Exception:
+            return None
+
+    moved   = []
+    doing   = []   # "Doing" or "Active"
+    todo    = []   # "To Do" or "New"
+    done    = []   # "Done" / "Resolved" / "Closed"
+
+    for r in ado_rows:
+        last_updated = _parse_dt(r.get("ADOLastUpdated"))
+        if last_updated and last_updated.tzinfo is None:
+            last_updated = last_updated.replace(tzinfo=timezone.utc)
+        status  = r.get("ADOStatus") or "To Do"
+        is_recent = last_updated and last_updated >= cutoff
+
+        entry = {
+            "title":       r.get("Title", "Untitled"),
+            "ado_id":      r.get("ADOWorkItemId"),
+            "ado_url":     r.get("ADOUrl", "#"),
+            "status":      status,
+            "assignee":    r.get("ADOAssignedTo") or "Unassigned",
+            "iteration":   r.get("ADOIteration") or "—",
+            "pushed_at":   r.get("ADOPushedAt", "")[:10],
+            "week_date":   r.get("_meeting_date", ""),
+            "last_updated": r.get("ADOLastUpdated", "")[:10] if r.get("ADOLastUpdated") else "—",
+        }
+        if is_recent:
+            moved.append(entry)
+        if status in ("Doing", "Active"):
+            doing.append(entry)
+        elif status in ("To Do", "New"):
+            todo.append(entry)
+        elif status in ("Done", "Resolved", "Closed"):
+            done.append(entry)
+
+    def _row(e, show_state=False):
+        state_chip = f'<span style="font-size:11px;font-weight:600;color:{ADO_STATE_COLORS.get(e["status"],"#999")}">{ADO_STATE_ICONS.get(e["status"],"⬜")} {e["status"]}</span> &nbsp;' if show_state else ""
+        return (
+            f'<tr>'
+            f'<td><a href="{e["ado_url"]}" target="_blank" rel="noopener" '
+            f'style="font-weight:600;color:var(--blue);text-decoration:none">#{e["ado_id"]}</a></td>'
+            f'<td>{e["title"]}</td>'
+            f'<td>{state_chip}{e["assignee"]}</td>'
+            f'<td>{e["iteration"]}</td>'
+            f'<td>{e["last_updated"]}</td>'
+            f'<td style="font-size:11px;color:var(--muted)">{e["week_date"]}</td>'
+            f'</tr>'
+        )
+
+    def _section(title, color, rows_list, show_state=False):
+        if not rows_list:
+            return ""
+        header_style = f"color:{color};border-bottom:2px solid {color}"
+        trs = "\n".join(_row(e, show_state) for e in rows_list)
+        return (
+            f'<h3 style="margin:24px 0 12px;font-size:15px;{header_style};padding-bottom:6px">{title} ({len(rows_list)})</h3>'
+            f'<div class="table-wrap"><table>'
+            f'<thead><tr><th>ADO #</th><th>Title</th><th>Assignee</th><th>Iteration</th><th>Last Updated</th><th>Week Raised</th></tr></thead>'
+            f'<tbody>{trs}</tbody></table></div>'
+        )
+
+    html = '<div style="padding:0">'
+    html += _section("🔄 Moved This Week", "#7C3AED", moved, show_state=True)
+    html += _section(f"{ADO_STATE_ICONS['Doing']} In Progress (Doing)", ADO_STATE_COLORS["Doing"], doing)
+    html += _section(f"{ADO_STATE_ICONS['To Do']} Queued (To Do)", ADO_STATE_COLORS["To Do"], todo)
+    html += _section(f"{ADO_STATE_ICONS['Done']} Completed (Done)", ADO_STATE_COLORS["Done"], done)
+    html += "</div>"
+    return html
+
+
+def build_progress_tab_injection(all_historical_rows: list[dict]) -> tuple[str, str]:
+    """
+    Returns (extra_nav, extra_section) strings for injection into build_report_html().
+    Pass all rows from all historical weeks (including ADO fields).
+    """
+    has_ado = any(r.get("ADOWorkItemId") for r in all_historical_rows)
+    nav = '<div class="nav-tab" onclick="showTab(\'progress\')">🔄 Progress</div>'
+    section = (
+        f'<div id="tab-progress" class="section">'
+        f'{_build_progress_tab(all_historical_rows)}'
+        f'</div>'
+    )
+    return nav, section
 
 
 def build_report_html(

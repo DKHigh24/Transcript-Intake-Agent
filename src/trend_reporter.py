@@ -15,7 +15,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from trend_analyzer import weekly_analysis, monthly_analysis, entries_for_date
-from report_generator import build_report_html
+from report_generator import build_report_html, build_progress_tab_injection
 
 # ── palette (matches report_generator.py) ─────────────────────────────────────
 BUCKET_COLORS = {
@@ -216,6 +216,24 @@ def generate_weekly_report(
     extra_nav = "<div class=\"nav-tab\" onclick=\"showTab('trends')\">📈 Trends</div>"
     section, scripts = _build_trends_tab(a)
 
+    # Collect all historical rows across all weeks for Progress tab
+    _weeks_dir = Path(__file__).parent.parent / "output" / "weeks"
+    all_historical_rows: list[dict] = []
+    for week_dir in sorted(_weeks_dir.glob("????-??-??")):
+        p = week_dir / "classified_rows.json"
+        if p.exists():
+            week_date = week_dir.name
+            try:
+                rows_data = json.loads(p.read_text(encoding="utf-8"))
+                for r in rows_data:
+                    r_copy = dict(r)
+                    r_copy.setdefault("_meeting_date", week_date)
+                    all_historical_rows.append(r_copy)
+            except Exception:
+                pass
+    progress_nav, progress_section = build_progress_tab_injection(all_historical_rows)
+    extra_nav += "\n    " + progress_nav
+
     # Triage section (collapsible, omitted when empty)
     triage_section = ""
     if n_suppressed:
@@ -254,7 +272,7 @@ def generate_weekly_report(
         report_title=f"Electronics AI Working Group — Weekly Report {a['date']}",
         header_sub=header_sub,
         extra_nav=extra_nav,
-        extra_sections=section + triage_section,
+        extra_sections=section + triage_section + progress_section,
         extra_scripts=scripts,
     )
 

@@ -1,0 +1,24 @@
+{
+  "_comment": "Maps our classified row field names to ADO REST API work item field paths.",
+  "_ado_api_version": "7.1",
+  "_work_item_type": "Issue",
+  "field_map": {
+    "Title":                      "System.Title",
+    "EvidenceSummary":            "System.Description",
+    "OperatingBucket":            "System.Tags",
+    "MaturitySignal":             "System.Tags",
+    "AIUseCaseType":              "System.Tags",
+    "ProcessStage":               "System.Tags",
+    "SuggestedBusinessOwnerText": "System.AssignedTo"
+  },
+  "tracking_fields": {
+    "ADOWorkItemId":  "System.Id",
+    "ADOUrl":         "System.TeamProject",
+    "ADOStatus":      "System.State",
+    "ADOIteration":   "System.IterationPath",
+    "ADOAssignedTo":  "System.AssignedTo.displayName",
+    "ADOLastUpdated": "System.ChangedDate"
+  },
+  "fixed_tags": ["AI Working Group", "Transcript Intake"],
+  "parent_link_type": "System.LinkTypes.Hierarchy-Reverse"
+}
