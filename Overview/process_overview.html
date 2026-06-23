@@ -86,8 +86,8 @@
 
 <div class="header">
   <h1>⚡ AI Transcript Intake Agent — Process Overview</h1>
-  <div class="sub">How weekly meeting transcripts become reviewable AI-opportunity reports and SharePoint-ready drafts</div>
-  <div class="meta">Electronics AI Working Group · Draft outputs — human review required before any SharePoint push</div>
+  <div class="sub">How weekly meeting transcripts become reviewable AI-opportunity reports, SharePoint-ready drafts, and Azure DevOps work items — tracked through execution</div>
+  <div class="meta">Electronics AI Working Group · Draft outputs — human review required before any SharePoint or ADO push</div>
 </div>
 
 <div class="nav">
@@ -98,6 +98,7 @@
   <a href="#monthly">🗓 Monthly Rollup</a>
   <a href="#outputs">📂 Outputs</a>
   <a href="#maintain">🛠 Keeping It Running</a>
+  <a href="#ado">🔗 ADO Integration</a>
   <a href="#trouble">🚑 Troubleshooting</a>
 </div>
 
@@ -199,8 +200,8 @@
 
         <!-- 11 weekly report -->
         <rect x="300" y="732" width="360" height="56" rx="10" fill="#47A8BD"></rect>
-        <text x="480" y="755" text-anchor="middle" class="fc-label">11 · Weekly report (4 tabs)</text>
-        <text x="480" y="773" text-anchor="middle" class="fc-sub">Cards · Analytics · Table · 📈 Trends — trend_reporter.py</text>
+        <text x="480" y="755" text-anchor="middle" class="fc-label">11 · Weekly report (5 tabs)</text>
+        <text x="480" y="773" text-anchor="middle" class="fc-sub">Cards · Analytics · Table · Trends · Progress — trend_reporter.py</text>
         <path d="M480,788 L480,812" class="fc-edge" marker-end="url(#arrow)"></path>
 
         <!-- 12 monthly refresh -->
@@ -243,6 +244,7 @@
       <table>
         <thead><tr><th>#</th><th>Stage</th><th>Module</th><th>Input → Output</th><th>AI?</th></tr></thead>
         <tbody>
+          <tr><td>0</td><td>ADO status sync</td><td><code>ado_client.py</code></td><td>ADO API → updates archived rows</td><td>No</td></tr>
           <tr><td>1</td><td>Read transcript</td><td><code>transcript_reader.py</code></td><td>.docx → paragraphs</td><td>No</td></tr>
           <tr><td>2</td><td>Clean &amp; normalize</td><td><code>transcript_cleaner.py</code></td><td>paragraphs → speaker turns</td><td>No</td></tr>
           <tr><td>3</td><td>Chunk + keyword filter</td><td><code>transcript_chunker.py</code></td><td>turns → <code>chunks.json</code></td><td>No</td></tr>
@@ -253,8 +255,9 @@
           <tr><td>7</td><td>SharePoint payload</td><td><code>power_automate_client.py</code></td><td>rows → <code>sharepoint_payload.json</code></td><td>No</td></tr>
           <tr><td>8</td><td>HTML report</td><td><code>report_generator.py</code></td><td>rows → <code>ai_opportunity_report.html</code></td><td>No</td></tr>
           <tr><td>9–10</td><td>Archive + ingest history</td><td><code>history_store.py</code></td><td>rows → <code>opportunities.json</code></td><td>No</td></tr>
-          <tr><td>11</td><td>Weekly report</td><td><code>trend_reporter.py</code></td><td>history → <code>weekly_report.html</code></td><td>No</td></tr>
-          <tr><td>12</td><td>Push (opt-in)</td><td><code>power_automate_client.py</code></td><td>payload → SharePoint</td><td>No</td></tr>
+          <tr><td>11</td><td>Weekly report (5 tabs)</td><td><code>trend_reporter.py</code></td><td>history → <code>weekly_report.html</code></td><td>No</td></tr>
+          <tr><td>9c</td><td>ADO push (opt-in)</td><td><code>ado_client.py</code></td><td>rows → ADO Issues + write-back</td><td>No</td></tr>
+          <tr><td>12</td><td>SharePoint push (opt-in)</td><td><code>power_automate_client.py</code></td><td>payload → SharePoint</td><td>No</td></tr>
         </tbody>
       </table>
     </div>
@@ -276,6 +279,7 @@ python src/main.py --input "<file>.docx" --mode weekly --date 2026-06-17</code><
     <div class="callout ok"><strong>Back-dated transcripts are handled automatically.</strong> If the transcript's date is earlier than any week already in history, <code>--mode weekly</code> detects this and rebuilds <em>all</em> weekly and monthly reports so every longitudinal view stays accurate. You just run the same command — no special flag needed.</div>
     <div class="callout ok"><strong>Idempotent.</strong> Re-running the same meeting date replaces that date's rows in history — it never double-counts. Safe to re-run after fixing a transcript.</div>
     <div class="callout warn"><strong>Requires an OpenAI key.</strong> Steps 4–5 call the model, so set <code>OPENAI_API_KEY</code> in <code>.env</code>. Without a key, use <code>--mock</code> to exercise the wiring, or hand-classify rows.</div>
+    <div class="callout ok"><strong>Closing the loop with Azure DevOps (opt-in).</strong> After reviewing <code>output/weeks/&lt;date&gt;/review_rows.xlsx</code>, add <code>--push-ado</code> to the command to create ADO Issues for each approved opportunity. Each subsequent weekly run automatically syncs live ADO status back into all reports — no manual lookups needed.</div>
   </section>
 
   <!-- ───────────────────────── Automatic trigger ───────────────────────── -->
@@ -324,11 +328,12 @@ python src/main.py --mode monthly --month 2026-06</code></pre>
 ├── review_rows.xlsx                  # current run's review workbook
 ├── sharepoint_payload.json           # current run's SharePoint draft payload
 ├── ai_opportunity_report.html        # current run's single-transcript report
+├── master_opportunities.xlsx     # Power BI flat file — all weeks, incl. ADO columns AR-AX
 ├── weeks/&lt;YYYY-MM-DD&gt;/                # per-week archive
 │   ├── classified_rows.json
 │   ├── review_rows.xlsx
 │   ├── sharepoint_payload.json
-│   └── weekly_report.html            # 4-tab weekly report (Cards/Analytics/Table/Trends)
+│   └── weekly_report.html            # 5-tab weekly report (Cards/Analytics/Table/Trends/Progress)
 ├── history/
 │   ├── opportunities.json            # cumulative cross-week history
 │   └── processed_files.json          # watcher manifest
@@ -349,20 +354,20 @@ python src/main.py --mode monthly --month 2026-06</code></pre>
       <li>Run <code>--mode weekly</code> (or let the watcher do it).</li>
       <li>Open <code>output/weeks/&lt;date&gt;/weekly_report.html</code> and review every card — they default to <em>Needs Review</em>.</li>
       <li>Correct anything wrong in <code>review_rows.xlsx</code>; only then consider a push.</li>
-      <li>Push to SharePoint only when explicitly approved (<code>--mode push</code>, with the Power Automate URL configured).</li>
+      <li>Push to Azure DevOps only when explicitly approved (<code>--push-ado</code> after review), and push to SharePoint only when explicitly approved (<code>--mode push</code>, with the Power Automate URL configured).</li>
     </ol>
 
     <h3>Core rules (do not break)</h3>
     <ul>
       <li>Never send full transcripts to the model — only keyword-filtered chunks.</li>
       <li>All model output is <strong>draft-only</strong>; rows default to <em>Needs Review</em>.</li>
-      <li>Human review is required before any SharePoint push.</li>
+      <li>Human review is required before any SharePoint or ADO push.</li>
       <li>Never commit secrets; never hard-code the Power Automate URL (read it from config/env).</li>
       <li>SharePoint internal names come from <code>config/sharepoint_field_mapping.json</code>; allowed values from <code>config/choice_values.json</code>; row shape from <code>config/mvp_output_schema.json</code>.</li>
     </ul>
 
     <h3>Report format standard</h3>
-    <p>The weekly HTML must keep the original <code>ai_opportunity_report.html</code> layout and behavior — KPI header plus the 📋 Cards / 📊 Analytics / 🗂 Full Table tabs — with longitudinal insight added only as the 4th 📈 Trends tab. The canonical layout lives in <code>report_generator.build_report_html()</code> (single source of truth). See <code>skills/weekly_report_format.md</code> before changing any report code.</p>
+    <p>The weekly HTML must keep the original <code>ai_opportunity_report.html</code> layout and behavior — KPI header plus the 📋 Cards / 📊 Analytics / 🗂 Full Table / 📈 Trends / 🔗 Progress tabs. The canonical layout lives in <code>report_generator.build_report_html()</code> (single source of truth). See <code>skills/weekly_report_format.md</code> before changing any report code.</p>
 
     <h3>Adding new weeks over time</h3>
     <ul>
@@ -371,6 +376,54 @@ python src/main.py --mode monthly --month 2026-06</code></pre>
       <li>To rebuild a corrupted history, re-run <code>--mode weekly</code> for each transcript in chronological order.</li>
       <li>To manually force a full report regeneration from current history (e.g. after edits): <code>python src/main.py --mode rebuild</code></li>
     </ul>
+  </section>
+
+  <!-- ───────────────────────── ADO Integration ───────────────────────── -->
+  <section id="ado">
+    <h2>🔗 ADO Integration — Closing the Loop</h2>
+
+    <p>Identified opportunities only deliver value if someone picks them up and executes. The ADO integration closes the loop between <em>"we discussed this in a meeting"</em> and <em>"someone is actually working on it"</em> by creating tracked Issues in Azure DevOps and surfacing their live status in every report.</p>
+
+    <h3>Three capabilities</h3>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Capability</th><th>When</th><th>What it does</th><th>Operator action</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Step 0 — Sync</strong></td><td>Every weekly run (automatic)</td><td>Reads live ADO status for all previously pushed items and updates archived rows</td><td>None — silent background step</td></tr>
+          <tr><td><strong>Step 9c — Push</strong></td><td>After human review (opt-in)</td><td>Creates ADO Issues for new approved opportunities; writes back IDs and URLs</td><td>Add <code>--push-ado</code> flag after reviewing xlsx</td></tr>
+          <tr><td><strong>Progress tab</strong></td><td>Every weekly report</td><td>Shows all ADO-linked items grouped by state (Doing / To Do / Done); highlights state changes in last 7 days</td><td>Open weekly_report.html, click Progress tab</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Running an ADO push</h3>
+    <pre><code># 1) Run the normal weekly pipeline first
+python src/main.py --input "input/transcripts/YOUR_FILE.docx" --mode weekly
+
+# 2) Review output/weeks/&lt;date&gt;/review_rows.xlsx
+
+# 3) When satisfied, re-run with --push-ado to create ADO Issues
+python src/main.py --input "input/transcripts/YOUR_FILE.docx" --mode weekly --push-ado</code></pre>
+
+    <div class="callout"><strong>Safe to re-run.</strong> Title-based dedup prevents duplicate ADO items — if an item with that exact title already exists in ADO, its existing ID is recovered instead of creating a new one.</div>
+
+    <h3>ADO fields tracked per opportunity</h3>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Field</th><th>Description</th><th>When populated</th></tr></thead>
+        <tbody>
+          <tr><td><code>ADOWorkItemId</code></td><td>Integer ADO Issue ID</td><td>After --push-ado</td></tr>
+          <tr><td><code>ADOUrl</code></td><td>Direct browser link to the ADO item</td><td>After --push-ado</td></tr>
+          <tr><td><code>ADOStatus</code></td><td>Current state: To Do / Doing / Done</td><td>After each Step 0 sync</td></tr>
+          <tr><td><code>ADOAssignedTo</code></td><td>Display name of assigned team member</td><td>After each Step 0 sync</td></tr>
+          <tr><td><code>ADOIteration</code></td><td>Sprint or iteration path</td><td>After each Step 0 sync</td></tr>
+          <tr><td><code>ADOLastUpdated</code></td><td>ISO timestamp of last ADO state change</td><td>After each Step 0 sync</td></tr>
+          <tr><td><code>ADOPushedAt</code></td><td>ISO timestamp when this agent first pushed the item</td><td>After --push-ado</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout ok"><strong>Step 0 is always read-only.</strong> The automatic sync at the start of every weekly run never creates or modifies ADO work items. It only reads current state from ADO and updates local files. ADO push is always an explicit operator step.</div>
   </section>
 
   <!-- ───────────────────────── Troubleshooting ───────────────────────── -->
@@ -394,7 +447,7 @@ python src/main.py --mode monthly --month 2026-06</code></pre>
 </div>
 
 <div class="footer">
-  Electronics AI Working Group · AI Transcript Intake Agent · Process Overview · Draft — all rows require human review before SharePoint promotion
+  Electronics AI Working Group · AI Transcript Intake Agent · Process Overview · Updated June 2026 · Draft — all rows require human review before SharePoint or ADO push
 </div>
 
 </body>

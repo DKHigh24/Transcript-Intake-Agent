@@ -87,6 +87,7 @@
 <a href="#watcher">Auto-Watcher</a>
 <a href="#outputs">Outputs</a>
 <a href="#rebuild">Rebuild</a>
+<a href="#ado-push">ADO Push</a>
 <a href="#troubleshoot">Troubleshoot</a>
 <a href="#openspec">OpenSpec</a>
 
@@ -104,10 +105,11 @@
 
   <table>
     <tr><th>What goes in</th><th>What comes out</th></tr>
-    <tr><td>DOCX transcript file dropped in <span class="inline-code">input/transcripts/</span></td><td>Weekly HTML report (4-tab layout: Cards, Analytics, Full Table, Trends)</td></tr>
+    <tr><td>DOCX transcript file dropped in <span class="inline-code">input/transcripts/</span></td><td>Weekly HTML report (5-tab layout: Cards, Analytics, Full Table, Trends, <strong>Progress</strong>)</td></tr>
     <tr><td>Session date (auto-detected from filename)</td><td>Monthly HTML summary for the same calendar month</td></tr>
     <tr><td>GitHub Copilot subscription (default) <em>or</em> OpenAI API key (optional override)</td><td>Excel workbook for human review (<span class="inline-code">review_rows.xlsx</span>)</td></tr>
     <tr><td></td><td>SharePoint payload JSON (draft, human-gated)</td></tr>
+    <tr><td>ADO PAT + org config in <span class="inline-code">.env</span> (optional)</td><td>Azure DevOps Issues for each approved opportunity — tracked through execution</td></tr>
   </table>
 
   <div class="callout info">
@@ -195,6 +197,7 @@
   <h3>What the pipeline does automatically</h3>
   <table>
     <tr><th>Step</th><th>What happens</th><th>Output</th></tr>
+    <tr><td>0. ADO Sync</td><td>Reads live ADO status for all previously pushed items (silent if ADO not configured)</td><td>—</td></tr>
     <tr><td>1. Read</td><td>Loads the DOCX, extracts paragraphs</td><td>—</td></tr>
     <tr><td>2. Clean</td><td>Strips formatting noise</td><td>—</td></tr>
     <tr><td>3. Chunk</td><td>Splits into speaker turns</td><td><span class="inline-code">output/transcript_chunks.json</span></td></tr>
@@ -203,8 +206,9 @@
     <tr><td>6. Classify</td><td>AI classifies into 40-field schema (via Copilot SDK or OpenAI)</td><td><span class="inline-code">output/classified_rows.json</span></td></tr>
     <tr><td>7. Export</td><td>Writes Excel workbook</td><td><span class="inline-code">output/review_rows.xlsx</span></td></tr>
     <tr><td>8. Payload</td><td>Builds SharePoint JSON (draft)</td><td><span class="inline-code">output/sharepoint_payload.json</span></td></tr>
-    <tr><td>9. Report</td><td>Generates HTML report</td><td><span class="inline-code">output/ai_opportunity_report.html</span></td></tr>
+    <tr><td>9. Report</td><td>Generates HTML report (5-tab layout with Progress tab)</td><td><span class="inline-code">output/ai_opportunity_report.html</span></td></tr>
     <tr><td>10. Archive</td><td>Saves week artifacts</td><td><span class="inline-code">output/weeks/YYYY-MM-DD/</span></td></tr>
+    <tr><td>9c. ADO Push</td><td>Creates ADO Issues for approved rows (only when <span class="inline-code">--push-ado</span> flag is passed)</td><td>ADO + <span class="inline-code">output/weeks/YYYY-MM-DD/classified_rows.json</span></td></tr>
     <tr><td>11. History</td><td>Updates cumulative opportunity store</td><td><span class="inline-code">output/history/opportunities.json</span></td></tr>
     <tr><td>12. Monthly</td><td>Regenerates the month's summary</td><td><span class="inline-code">output/reports/monthly_YYYY-MM.html</span></td></tr>
   </table>
@@ -341,7 +345,7 @@ print('Active backend:', llm_backend_name())
 
   <table>
     <tr><th>File / Folder</th><th>What it is</th><th>When to open it</th></tr>
-    <tr><td><span class="inline-code">output/ai_opportunity_report.html</span></td><td>Weekly report — current week (4 tabs)</td><td>After every run — primary review document</td></tr>
+    <tr><td><span class="inline-code">output/ai_opportunity_report.html</span></td><td>Weekly report — current week (5 tabs)</td><td>After every run — primary review document</td></tr>
     <tr><td><span class="inline-code">output/reports/monthly_YYYY-MM.html</span></td><td>Monthly roll-up for the calendar month</td><td>End of month review / leadership reporting</td></tr>
     <tr><td><span class="inline-code">output/weeks/YYYY-MM-DD/weekly_report.html</span></td><td>Archived weekly report for that specific session</td><td>Historical reference or back-dated comparison</td></tr>
     <tr><td><span class="inline-code">output/review_rows.xlsx</span></td><td>Excel workbook — all opportunities from current run</td><td>Human review before SharePoint submission</td></tr>
@@ -357,11 +361,75 @@ print('Active backend:', llm_backend_name())
     <tr><td>Analytics</td><td>Bar charts: opportunities by bucket, type, level, signal strength</td></tr>
     <tr><td>Full Table</td><td>Complete 40-field table, sortable</td></tr>
     <tr><td>Trends</td><td>Week-over-week longitudinal charts — new vs. recurring, signal distribution over time</td></tr>
+    <tr><td>Progress</td><td>All ADO-linked opportunities grouped by current ADO state (Doing / To Do / Done). Highlights items that changed state in the last 7 days. Answers "where are we at with X we discussed weeks ago?"</td></tr>
   </table>
+
+  <!-- ═══════════════════════════════════ ADO PUSH ═══════════════════════════════════ -->
+  <span id="ado-push" class="section-anchor"></span>
+  <h2>9 — Azure DevOps Push (opt-in) <span class="badge manual">After Human Review</span></h2>
+
+  <p>After reviewing the weekly output, you can push approved opportunities to Azure DevOps as tracked Issues. This is always opt-in and always follows human review.</p>
+
+  <div class="callout info">
+    <span class="icon">💡</span>
+    <div><strong>Why ADO?</strong> Without a work tracking system, the group cannot answer "we talked about invoice matching automation three weeks ago — has anything happened?" ADO integration closes that loop by creating a tracked Issue for each opportunity and syncing its live status back into every report automatically.</div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h4>Review the output first</h4>
+        <p>Open <span class="inline-code">output/weeks/&lt;date&gt;/review_rows.xlsx</span>. Verify titles, problem statements, evidence summaries, owners, and next steps. Only push rows you are confident are accurate.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h4>Run the pipeline with --push-ado</h4>
+        <pre><code>.\.venv\Scripts\python.exe src\main.py <span class="str">\
+  --input "input/transcripts/YOUR_FILE.docx"</span> <span class="str">\
+  --mode weekly --push-ado</span></code></pre>
+        <p>Each row without an <span class="inline-code">ADOWorkItemId</span> is created as an ADO Issue under the parent Epic configured in <span class="inline-code">.env</span>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h4>Check the Progress tab</h4>
+        <p>Open the weekly report and click the <strong>Progress</strong> tab. All newly pushed items appear under "Queued (To Do)" with ADO chip badges linking directly to their ADO work items.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <span class="icon">✅</span>
+    <div><strong>Safe to re-run.</strong> If you run <span class="inline-code">--push-ado</span> again, the pipeline checks ADO by title before creating. If an item with that exact title already exists, it recovers the existing ID instead of creating a duplicate.</div>
+  </div>
+
+  <h3>What gets created in ADO</h3>
+  <table>
+    <tr><th>ADO Field</th><th>Source</th></tr>
+    <tr><td>Title</td><td>Opportunity Title from classified row</td></tr>
+    <tr><td>Description</td><td>Rich HTML: problem statement, evidence quote, speaker, timestamp, meeting date, next step, full classification metadata table</td></tr>
+    <tr><td>Tags</td><td>AI Working Group; Transcript Intake; MaturitySignal; OperatingBucket; AIUseCaseType; ProcessStage</td></tr>
+    <tr><td>Work Item Type</td><td>Issue (configurable via <span class="inline-code">ADO_WORK_ITEM_TYPE</span> in <span class="inline-code">.env</span>)</td></tr>
+    <tr><td>Parent</td><td>Epic configured via <span class="inline-code">ADO_PARENT_EPIC_TITLE</span></td></tr>
+  </table>
+
+  <h3>ADO environment variables (.env)</h3>
+  <pre><code><span class="comment"># Azure DevOps — required for ADO push</span>
+<span class="var">ADO_ORG_URL</span>=https://dev.azure.com/YourOrg
+<span class="var">ADO_PROJECT</span>=YourProject
+<span class="var">ADO_PAT</span>=your-personal-access-token
+<span class="var">ADO_WORK_ITEM_TYPE</span>=Issue
+<span class="var">ADO_DEFAULT_AREA_PATH</span>=YourProject
+<span class="var">ADO_PARENT_EPIC_TITLE</span>=Electronics AI Working Group Opportunities</code></pre>
+  <p>ADO PAT requires <strong>Work Items (Read &amp; Write)</strong> scope. Generate at: <span class="inline-code">https://dev.azure.com/YourOrg/_usersSettings/tokens</span></p>
 
   <!-- ═══════════════════════════════════ REBUILD ═══════════════════════════════════ -->
   <span id="rebuild" class="section-anchor"></span>
-  <h2>8 — Force Rebuild All Reports</h2>
+  <h2>10 — Force Rebuild All Reports</h2>
 
   <p>Use this when you need to regenerate all HTML reports from existing history without adding a new transcript (e.g., after manually editing a classified row, or after a code change).</p>
 
@@ -382,7 +450,7 @@ print('Active backend:', llm_backend_name())
 
   <!-- ═══════════════════════════════════ TROUBLESHOOT ═══════════════════════════════════ -->
   <span id="troubleshoot" class="section-anchor"></span>
-  <h2>9 — Troubleshooting</h2>
+  <h2>11 — Troubleshooting</h2>
 
   <table>
     <tr><th>Problem</th><th>Cause</th><th>Fix</th></tr>
@@ -434,7 +502,7 @@ print('Active backend:', llm_backend_name())
   </table>
 
   <!-- ═══════════════════════════════════ KEEPER RULES ═══════════════════════════════════ -->
-  <h2>10 — Keeper Rules</h2>
+  <h2>12 — Keeper Rules</h2>
 
   <ul>
     <li>Never commit <span class="inline-code">.env</span> files or API keys to the repository.</li>
@@ -445,6 +513,9 @@ print('Active backend:', llm_backend_name())
     <li>The <span class="inline-code">output/</span> folder is gitignored — do not commit generated reports or artifacts.</li>
     <li>Choice field values must match <span class="inline-code">config/choice_values.json</span> exactly — including the known typos.</li>
     <li>The default AI backend is <strong>GitHub Copilot SDK</strong>. If no <span class="inline-code">OPENAI_API_KEY</span> is set, Copilot is used automatically. Do not set a dummy key — leave it unset to stay on Copilot.</li>
+    <li>ADO push (<span class="inline-code">--push-ado</span>) is always opt-in and always follows human review. Never run it before reviewing the output workbook.</li>
+    <li>Step 0 ADO sync is read-only — it never creates or modifies ADO work items. Only <span class="inline-code">--push-ado</span> creates items.</li>
+    <li>ADO PAT is a secret — never commit it to the repository. Keep it only in <span class="inline-code">.env</span>.</li>
   </ul>
 
   <hr class="divider" />
@@ -461,6 +532,11 @@ print('Active backend:', llm_backend_name())
   <div class="callout tip">
     <span class="icon">💡</span>
     <div><strong>The short version:</strong> Meeting transcript goes in → organized AI opportunity report comes out. A human still reviews everything before anything goes anywhere official.</div>
+  </div>
+
+  <div class="callout tip">
+    <span class="icon">🔗</span>
+    <div><strong>And then what?</strong> The tool can also push each approved opportunity into Azure DevOps as a tracked work item, then automatically check each week whether anyone has picked it up. The weekly report's Progress tab answers "we talked about X three sessions ago — where does that stand?" without anyone having to manually look it up.</div>
   </div>
 
   <h3>What does the AI actually do?</h3>
@@ -541,7 +617,7 @@ print('Active backend:', llm_backend_name())
       <div class="step-num">7</div>
       <div class="step-body">
         <h4>It builds your reports</h4>
-        <p>The tool creates three things: an Excel spreadsheet (for review), a SharePoint data file (draft, not sent yet), and a polished HTML report you can open in any browser. The report has four views: a card layout, charts, a full table, and a trends view that shows how ideas are evolving week over week.</p>
+        <p>The tool creates three things: an Excel spreadsheet (for review), a SharePoint data file (draft, not sent yet), and a polished HTML report you can open in any browser. The report has five views: a card layout, charts, a full table, a trends view that shows how ideas are evolving week over week, and a Progress view that shows the live status of every opportunity that has been submitted to Azure DevOps.</p>
       </div>
     </div>
     <div class="step">
