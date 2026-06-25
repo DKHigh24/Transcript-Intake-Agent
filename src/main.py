@@ -58,7 +58,8 @@ CLASSIFIED_PATH = str(OUTPUT_DIR / "classified_rows.json")
 REVIEW_PATH = str(OUTPUT_DIR / "review_rows.xlsx")
 PAYLOAD_PATH = str(OUTPUT_DIR / "sharepoint_payload.json")
 
-MODES = ["dry-run", "extract", "classify", "payload", "push", "weekly", "monthly", "rebuild"]
+MODES = ["dry-run", "extract", "classify", "payload", "push", "weekly", "monthly", "rebuild",
+         "review", "apply-feedback", "eval", "promote-feedback"]
 
 # ── Configurable thresholds (from .env, with defaults) ───────────────────────
 _DEDUP_THRESHOLD = float(os.getenv("DEDUP_SIMILARITY_THRESHOLD", "0.72"))
@@ -247,7 +248,7 @@ def rebuild_all_reports(history: list[dict]) -> None:
                 week_rows_m = json.loads(archived_rows_path.read_text(encoding="utf-8"))
                 _update_master(week_rows_m, d)
     except PermissionError:
-        print("  ⚠️  master_opportunities.xlsx is open in Excel — close it and re-run to update")
+        print("  [warning] master_opportunities.xlsx is open in Excel -- close it and re-run to update")
 
     # Regenerate the upcoming session presentation from the latest meeting date.
     if dates:
@@ -265,7 +266,8 @@ def rebuild_all_reports(history: list[dict]) -> None:
 
 
 def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = None,
-               include_low_confidence: bool = False, push_ado: bool = False) -> None:
+               include_low_confidence: bool = False, push_ado: bool = False,
+               skip_review_gate: bool = False) -> None:
     """Process a week's transcript, archive it, ingest into history, build weekly report."""
 
     # Step 0 — ADO status sync (read-only; silently skipped if ADO_PAT absent)
@@ -274,7 +276,7 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
         print("\n=== Step 0: Sync ADO work item statuses ===")
         ado_client.sync_all_weeks()
     except Exception as e:
-        print(f"[ado] ⚠️  Sync skipped due to error: {e}")
+        print(f"[ado] [WARN] Sync skipped due to error: {e}")
 
     # Always clear stale intermediate cache so a new transcript is never contaminated
     # by artifacts from a previous run.
@@ -288,6 +290,19 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
 
     meeting_date = period_utils.resolve_meeting_date(docx_path or "", override_date)
     period = period_utils.period_info(meeting_date)
+
+    # Step 5d — build review queue (idempotent: preserves existing approvals on re-run)
+    import review_queue as rq
+    rq.build_queue_from_rows(primary_rows, period["date"])
+    pending_count = sum(
+        1 for it in rq.load_queue(period["date"]) if it.get("status") == "pending"
+    )
+    print(f"\n=== Step 5d: Review queue ===")
+    print(f"  {pending_count} item(s) pending review -> output/review_queue/{period['date']}/queue.json")
+    if pending_count > 0:
+        print(f"  Run: python src/main.py --mode review --date {period['date']}")
+        if push_ado and not skip_review_gate:
+            print(f"  [ado] NOTE: --push-ado requires approved items. Review before pushing.")
     print(f"\n=== Step 9: Archive week {period['date']} ({period['week']}) ===")
     period_utils.ensure_dirs()
     archive_dir = period_utils.week_archive_dir(meeting_date)
@@ -301,37 +316,56 @@ def run_weekly(docx_path: str, mock: bool = False, override_date: str | None = N
     try:
         update_master(primary_rows, period["date"])
     except PermissionError:
-        print("  ⚠️  master_opportunities.xlsx is open in Excel — close it and re-run to update")
+        print("  [warning] master_opportunities.xlsx is open in Excel -- close it and re-run to update")
 
     if push_ado:
         print("\n=== Step 9c: Push new opportunities to ADO ===")
         try:
             import ado_client
             if ado_client.is_configured():
-                epic_id = ado_client.get_or_create_epic()
-                if epic_id > 0:
-                    updated_rows = []
-                    for row in primary_rows:
-                        updated_rows.append(ado_client.push_work_item(row, epic_id))
-                    # Write ADO fields back to the archived classified_rows.json
-                    archived_classified = archive_dir / "classified_rows.json"
-                    if archived_classified.exists():
-                        existing = json.loads(archived_classified.read_text(encoding="utf-8"))
-                        id_to_ado = {r.get("Title"): r for r in updated_rows}
-                        for row in existing:
-                            pushed = id_to_ado.get(row.get("Title"))
-                            if pushed and pushed.get("ADOWorkItemId"):
-                                row["ADOWorkItemId"] = pushed["ADOWorkItemId"]
-                                row["ADOUrl"]        = pushed["ADOUrl"]
-                                row["ADOStatus"]     = pushed["ADOStatus"]
-                                row["ADOPushedAt"]   = pushed["ADOPushedAt"]
-                        archived_classified.write_text(
-                            json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8"
-                        )
+                # ── Review gate ───────────────────────────────────────────────
+                if skip_review_gate:
+                    print("[ado] WARNING: --skip-review-gate is set -- pushing unreviewed opportunities")
+                    rows_to_push = [r for r in primary_rows if not r.get("ADOWorkItemId")]
+                else:
+                    all_rows_count = len([r for r in primary_rows if not r.get("ADOWorkItemId")])
+                    rows_to_push = [
+                        r for r in primary_rows
+                        if r.get("review_status") == "approved" and not r.get("ADOWorkItemId")
+                    ]
+                    skipped_count = all_rows_count - len(rows_to_push)
+                    if skipped_count > 0:
+                        print(f"[ado] {skipped_count} row(s) skipped -- not yet approved by reviewer")
+                        print(f"[ado] Run --mode review --date {period['date']} to approve items first")
+                    if not rows_to_push:
+                        print("[ado] No approved rows to push. Skipping ADO push.")
+                        rows_to_push = []
+
+                if rows_to_push:
+                    epic_id = ado_client.get_or_create_epic()
+                    if epic_id > 0:
+                        updated_rows = []
+                        for row in rows_to_push:
+                            updated_rows.append(ado_client.push_work_item(row, epic_id))
+                        # Write ADO fields back to the archived classified_rows.json
+                        archived_classified = archive_dir / "classified_rows.json"
+                        if archived_classified.exists():
+                            existing = json.loads(archived_classified.read_text(encoding="utf-8"))
+                            id_to_ado = {r.get("Title"): r for r in updated_rows}
+                            for row in existing:
+                                pushed = id_to_ado.get(row.get("Title"))
+                                if pushed and pushed.get("ADOWorkItemId"):
+                                    row["ADOWorkItemId"] = pushed["ADOWorkItemId"]
+                                    row["ADOUrl"]        = pushed["ADOUrl"]
+                                    row["ADOStatus"]     = pushed["ADOStatus"]
+                                    row["ADOPushedAt"]   = pushed["ADOPushedAt"]
+                            archived_classified.write_text(
+                                json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8"
+                            )
             else:
                 print("[ado] Skipping push — ADO_PAT not configured")
         except Exception as e:
-            print(f"[ado] ⚠️  Push skipped due to error: {e}")
+            print(f"[ado] [WARN] Push skipped due to error: {e}")
 
     print("\n=== Step 10: Ingest into opportunity history ===")
     # Snapshot the existing maximum date BEFORE ingest to detect back-dating.
@@ -396,6 +430,235 @@ def run_monthly(docx_path: str | None, override_date: str | None, month: str | N
     print(f"\n[done] Monthly report: {monthly_path}")
 
 
+# ── Review mode ───────────────────────────────────────────────────────────────
+
+def _get_reviewer_id() -> str:
+    """Return reviewer ID from env or os.getlogin()."""
+    rid = os.getenv("REVIEWER_ID", "").strip()
+    if rid:
+        return rid
+    try:
+        return os.getlogin()
+    except Exception:
+        return "unknown"
+
+
+def run_review(date: str | None) -> None:
+    """
+    Interactive CLI review queue.
+
+    Walks through pending items for the given date (or the most recent archived
+    week if date is omitted), presenting each opportunity's key fields and
+    asking the reviewer to Approve / Reject / Edit / Keep pending / Quit.
+    """
+    import review_queue as rq
+    from schema_migrations import migrate_list
+
+    # Resolve date
+    if date is None:
+        weeks = sorted(Path("output/weeks").glob("*/classified_rows.json"))
+        if not weeks:
+            print("[review] No archived weeks found. Run --mode weekly first.")
+            return
+        date = weeks[-1].parent.name
+        print(f"[review] No --date specified; using most recent week: {date}")
+
+    archive_path = Path("output") / "weeks" / date / "classified_rows.json"
+    if not archive_path.exists():
+        print(f"[review] No archived classified rows found at {archive_path}")
+        return
+
+    rows: list[dict] = migrate_list(
+        json.loads(archive_path.read_text(encoding="utf-8"))
+    )
+    items = rq.build_queue_from_rows(rows, date)
+    pending = rq.get_pending(items)
+
+    if not pending:
+        approved = sum(1 for it in items if it.get("status") == "approved")
+        rejected = sum(1 for it in items if it.get("status") == "rejected")
+        print(f"[review] All {len(items)} items already reviewed for {date}.")
+        print(f"  Approved: {approved}  Rejected: {rejected}")
+        return
+
+    reviewer_id = _get_reviewer_id()
+    print(f"\n[review] Reviewer: {reviewer_id}")
+    print(f"[review] Week: {date}  |  {len(pending)} of {len(items)} items pending review")
+    print("─" * 72)
+
+    actions_taken = {"approved": 0, "rejected": 0, "edited": 0, "skipped": 0}
+    id_to_item = {it["id"]: it for it in items}
+
+    for item in pending:
+        # Find the matching row for display
+        row = next(
+            (r for r in rows if rq._slugify(r.get("Title", "")) == item["id"]),
+            {}
+        )
+        print(f"\n  TITLE:    {row.get('Title', item['id'])}")
+        print(f"  TYPE:     {row.get('AIUseCaseType', '?')}  |  CONFIDENCE: {row.get('ConfidenceLevel', '?')}")
+        print(f"  MATURITY: {row.get('MaturitySignal', '?')}  |  PRIORITY: {row.get('Priority', '?')}")
+        print(f"  EVIDENCE: {str(row.get('EvidenceSummary', ''))[:120]}")
+        print(f"  PROBLEM:  {str(row.get('ProblemPainPoint', ''))[:120]}")
+        print()
+
+        while True:
+            choice = input("  [A]pprove / [R]eject / [E]dit field / [K]eep pending / [Q]uit: ").strip().upper()
+
+            if choice == "A":
+                notes = input("  Notes (optional, Enter to skip): ").strip()
+                rq.action_approve(item, reviewer_id, notes=notes, date=date)
+                id_to_item[item["id"]] = item
+                actions_taken["approved"] += 1
+                print(f"  ✓ Approved")
+                break
+
+            elif choice == "R":
+                reason = input("  Reason for rejection (required): ").strip()
+                if not reason:
+                    print("  [review] Rejection reason is required.")
+                    continue
+                rq.action_reject(item, reviewer_id, reason=reason, date=date)
+                id_to_item[item["id"]] = item
+                actions_taken["rejected"] += 1
+                print(f"  ✗ Rejected")
+                break
+
+            elif choice == "E":
+                field = input("  Field name to edit: ").strip()
+                if field not in row and not field.startswith("_"):
+                    print(f"  [review] Unknown field '{field}'.")
+                    continue
+                current = row.get(field)
+                print(f"  Current value: {current}")
+                new_val = input("  New value: ").strip()
+                notes = input("  Notes (optional): ").strip()
+                result = rq.action_edit(
+                    item, reviewer_id, field, new_val,
+                    notes=notes, date=date,
+                    model_value=row.get("_model", {}).get(field, current),
+                )
+                if result is None:
+                    continue  # validation failed — re-prompt
+                row[field] = new_val
+                id_to_item[item["id"]] = item
+                actions_taken["edited"] += 1
+                print(f"  ✎ Field '{field}' updated to '{new_val}'")
+                # Ask if they want to approve after editing
+                cont = input("  Approve now? [Y/N]: ").strip().upper()
+                if cont == "Y":
+                    approve_notes = input("  Notes (optional): ").strip()
+                    rq.action_approve(item, reviewer_id, notes=approve_notes, date=date)
+                    id_to_item[item["id"]] = item
+                    actions_taken["approved"] += 1
+                    print(f"  ✓ Approved")
+                break
+
+            elif choice == "K":
+                actions_taken["skipped"] += 1
+                print(f"  -> Kept pending")
+                break
+
+            elif choice == "Q":
+                print("\n[review] Session ended by reviewer.")
+                break
+            else:
+                print("  Enter A, R, E, K, or Q.")
+                continue
+
+        if choice == "Q":
+            break
+
+    # Save updated queue
+    rq.save_queue(date, list(id_to_item.values()))
+
+    # Write review fields back to archived classified_rows.json
+    updated_rows = rq.apply_queue_to_rows(rows, list(id_to_item.values()))
+    archive_path.write_text(
+        json.dumps(updated_rows, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+
+    print("\n─" * 72)
+    print(f"[review] Session summary for {date}:")
+    print(f"  Approved : {actions_taken['approved']}")
+    print(f"  Rejected : {actions_taken['rejected']}")
+    print(f"  Edited   : {actions_taken['edited']}")
+    print(f"  Skipped  : {actions_taken['skipped']}")
+    remaining = sum(1 for it in id_to_item.values() if it.get("status") == "pending")
+    print(f"  Still pending: {remaining}")
+    if remaining > 0:
+        print(f"\n  Run --mode review --date {date} again to continue.")
+    print(f"\n  Feedback records written to: {Path('output/feedback/feedback_log.jsonl')}")
+
+
+# ── Apply-feedback mode ───────────────────────────────────────────────────────
+
+def run_apply_feedback(version: str | None) -> None:
+    """Convert accumulated feedback log into staged prompt proposals."""
+    from feedback_applier import build_staged_version
+    import feedback_store
+
+    records = feedback_store.load_all()
+    if not records:
+        print("[feedback] No feedback records found. Run --mode review first.")
+        return
+
+    edits = [r for r in records if r.get("event") == "field_edit"]
+    approvals = [r for r in records if r.get("event") == "approve"]
+    rejections = [r for r in records if r.get("event") == "reject"]
+
+    print(f"[feedback] {len(records)} total records — "
+          f"{len(edits)} edits, {len(approvals)} approvals, {len(rejections)} rejections")
+
+    staging_dir = build_staged_version(version, records)
+    print(f"[feedback] Staged version written to: {staging_dir}")
+    print(f"\nNext steps:")
+    print(f"  1. Review the staged files in {staging_dir}")
+    print(f"  2. Run --mode eval to check classifier accuracy")
+    print(f"  3. Run --mode promote-feedback --feedback-version <version> if eval passes")
+
+
+# ── Eval mode ─────────────────────────────────────────────────────────────────
+
+def run_eval() -> None:
+    """Run the classifier against the labelled eval set and report accuracy."""
+    from evaluator import load_examples, run_eval as _run_eval, write_eval_report
+
+    examples = load_examples()
+    if not examples:
+        print("[eval] No examples found in config/eval/examples.jsonl")
+        print("  Run --mode apply-feedback then --mode promote-feedback to seed examples.")
+        return
+
+    if len(examples) < 5:
+        print(f"[eval] Only {len(examples)} examples found — minimum 5 required for a meaningful eval.")
+        print("  Accumulate more reviewer feedback before running eval.")
+        return
+
+    print(f"[eval] Running classifier against {len(examples)} labelled examples...")
+    results = _run_eval(examples)
+    report_path = write_eval_report(results)
+
+    print(f"\n[eval] Overall accuracy: {results['overall_accuracy']:.1%}  "
+          f"({'PASS' if results['pass'] else 'FAIL'} — threshold {results['threshold']:.0%})")
+    print("\nPer-field accuracy:")
+    for field, acc in sorted(results.get("per_field_accuracy", {}).items(),
+                             key=lambda x: x[1]):
+        bar = "#" * int(acc * 20)
+        print(f"  {field:<35} {acc:5.1%}  [{bar:<20}]")
+    print(f"\n[eval] Report written to: {report_path}")
+
+
+# ── Promote-feedback mode ─────────────────────────────────────────────────────
+
+def run_promote_feedback(version: str) -> None:
+    """Apply staged feedback version to classifier — only if eval passes."""
+    from feedback_applier import promote_version
+
+    print(f"[promote] Promoting staged version: {version}")
+    promote_version(version)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="AI Transcript Intake Agent",
@@ -438,9 +701,21 @@ def main() -> None:
         dest="push_ado",
         help="Push newly classified primary rows to ADO as Issues after archiving (requires ADO_PAT in .env)",
     )
+    parser.add_argument(
+        "--skip-review-gate",
+        action="store_true",
+        dest="skip_review_gate",
+        help="Bypass the review approval gate when using --push-ado (pushes all rows; emits warning)",
+    )
+    parser.add_argument(
+        "--feedback-version",
+        dest="feedback_version",
+        help="Staged feedback version to promote (for --mode promote-feedback)",
+    )
     args = parser.parse_args()
 
-    needs_input = args.mode not in ("monthly", "rebuild")
+    needs_input = args.mode not in ("monthly", "rebuild", "review",
+                                     "apply-feedback", "eval", "promote-feedback")
     if needs_input and not args.input:
         print(f"[error] --input is required for --mode {args.mode}")
         sys.exit(1)
@@ -474,7 +749,8 @@ def main() -> None:
         case "weekly":
             run_weekly(args.input, mock=args.mock, override_date=args.date,
                        include_low_confidence=args.include_low_confidence,
-                       push_ado=args.push_ado)
+                       push_ado=args.push_ado,
+                       skip_review_gate=args.skip_review_gate)
         case "monthly":
             run_monthly(args.input, override_date=args.date, month=args.month)
         case "rebuild":
@@ -484,6 +760,17 @@ def main() -> None:
                 sys.exit(1)
             period_utils.ensure_dirs()
             rebuild_all_reports(history)
+        case "review":
+            run_review(args.date)
+        case "apply-feedback":
+            run_apply_feedback(args.feedback_version)
+        case "eval":
+            run_eval()
+        case "promote-feedback":
+            if not args.feedback_version:
+                print("[error] --feedback-version is required for --mode promote-feedback")
+                sys.exit(1)
+            run_promote_feedback(args.feedback_version)
 
 
 if __name__ == "__main__":

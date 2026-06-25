@@ -5,6 +5,7 @@ Sends one candidate at a time. Validates against choice_values.json.
 Saves output/classified_rows.json.
 """
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -98,6 +99,17 @@ def classify_candidates(
             # Propagate triage tag from candidate (set by session cap guard in main.py)
             if "_triage_reason" in candidate:
                 row["_triage_reason"] = candidate["_triage_reason"]
+            # Snapshot raw model output and initialise review fields
+            row["_model"] = copy.deepcopy({
+                k: v for k, v in row.items()
+                if not k.startswith("_") and k not in (
+                    "review_status", "reviewer_id", "reviewer_timestamp", "reviewer_notes"
+                )
+            })
+            row.setdefault("review_status", None)
+            row.setdefault("reviewer_id", None)
+            row.setdefault("reviewer_timestamp", None)
+            row.setdefault("reviewer_notes", None)
             classified.append(row)
         except Exception as e:
             print(f"  [warn] classification failed for '{title}': {e}")

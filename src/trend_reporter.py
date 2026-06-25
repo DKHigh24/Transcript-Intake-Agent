@@ -261,9 +261,24 @@ def generate_weekly_report(
 
     generated = datetime.now().strftime("%B %d, %Y at %I:%M %p")
     suppressed_note = f", {n_suppressed} suppressed (low confidence)" if n_suppressed else ""
+
+    # Review queue summary
+    approved_count = sum(1 for r in week_rows if r.get("review_status") == "approved")
+    rejected_count = sum(1 for r in week_rows if r.get("review_status") == "rejected")
+    pending_count  = sum(1 for r in week_rows if not r.get("review_status"))
+    review_summary = ""
+    if week_rows:
+        review_summary = (
+            f" &middot; Review: "
+            f"<span style='color:#155724'>✓ {approved_count} approved</span> / "
+            f"<span style='color:#721c24'>✗ {rejected_count} rejected</span> / "
+            f"<span style='color:#856404'>⏳ {pending_count} pending</span>"
+        )
+
     header_sub = (f"Weekly Report &middot; {_esc(a['week'])} &middot; "
                   f"Meeting {_esc(a['date'])} &middot; "
-                  f"{a['total']} opportunities identified{suppressed_note} &middot; "
+                  f"{a['total']} opportunities identified{suppressed_note}"
+                  f"{review_summary} &middot; "
                   f"Generated {generated}")
 
     html_out = build_report_html(

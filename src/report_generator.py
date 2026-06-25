@@ -120,6 +120,7 @@ def _build_cards_html(rows: list[dict]) -> str:
         ado_id     = r.get("ADOWorkItemId")
         ado_url    = r.get("ADOUrl", "")
         ado_status = r.get("ADOStatus") or "New"
+        review_status = r.get("review_status")
 
         bucket_color  = _color_for(BUCKET_COLORS, bucket)
         type_color    = _color_for(TYPE_COLORS, use_type)
@@ -138,12 +139,35 @@ def _build_cards_html(rows: list[dict]) -> str:
                 f'{ado_icon} ADO #{ado_id} · {ado_status} 🔗</a>'
             )
 
+        # Review status badge
+        _REVIEW_BADGE_STYLES = {
+            "approved":        ("✓ Approved",       "#155724", "#d4edda", "#c3e6cb"),
+            "rejected":        ("✗ Rejected",        "#721c24", "#f8d7da", "#f5c6cb"),
+            "needs_reprocess": ("↩ Needs Reprocess", "#856404", "#fff3cd", "#ffeeba"),
+            "merged":          ("⇒ Merged",          "#004085", "#cce5ff", "#b8daff"),
+        }
+        review_badge = ""
+        if review_status and review_status in _REVIEW_BADGE_STYLES:
+            label, color, bg, border = _REVIEW_BADGE_STYLES[review_status]
+            review_badge = (
+                f'<span class="review-badge" style="color:{color};background:{bg};'
+                f'border:1px solid {border};padding:2px 8px;border-radius:4px;'
+                f'font-size:0.75rem;font-weight:600;margin-left:6px">{label}</span>'
+            )
+        elif not review_status:
+            review_badge = (
+                '<span class="review-badge" style="color:#6c757d;background:#f8f9fa;'
+                'border:1px solid #dee2e6;padding:2px 8px;border-radius:4px;'
+                'font-size:0.75rem;margin-left:6px">⏳ Pending Review</span>'
+            )
+
         cards.append(f"""
-        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-signal="{signal}" data-maturity="{maturity}" data-ado-status="{ado_status if ado_id else ''}">
+        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-signal="{signal}" data-maturity="{maturity}" data-ado-status="{ado_status if ado_id else ''}" data-review-status="{review_status or ''}">
           <div class="card-header" style="border-left: 5px solid {bucket_color};">
             <div class="card-title-row">
               <div class="card-title">{title}</div>
               {ado_chip}
+              {review_badge}
             </div>
             <div class="card-badges">
               <span class="badge" style="background:{type_color}">{use_type}</span>

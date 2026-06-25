@@ -150,7 +150,7 @@ def _create_epic(title: str) -> int:
 def get_or_create_epic() -> int:
     """Find or create the parent Epic. Returns Epic ID."""
     if not is_configured():
-        print("[ado] Skipping — ADO_PAT not configured")
+        print("[ado] Skipping -- ADO_PAT not configured")
         return -1
     epic_id = _find_epic(ADO_EPIC_TITLE)
     if epic_id:
@@ -203,7 +203,7 @@ def push_work_item(row: dict, epic_id: int) -> dict:
     Returns the updated row dict with ADO fields written back.
     """
     if not is_configured():
-        print("[ado] Skipping push — ADO_PAT not configured")
+        print("[ado] Skipping push -- ADO_PAT not configured")
         return row
     if row.get("ADOWorkItemId"):
         return row  # already pushed — skip silently
@@ -218,7 +218,7 @@ def push_work_item(row: dict, epic_id: int) -> dict:
         row["ADOUrl"]        = existing["url"]
         row["ADOStatus"]     = existing["state"]
         row["ADOPushedAt"]   = datetime.now(timezone.utc).isoformat()
-        print(f"[ado] ↩  Recovered existing #{existing['id']}: {title}")
+        print(f"[ado] [SKIP] Recovered existing #{existing['id']}: {title}")
         return row
 
     maturity = row.get("MaturitySignal", "")
@@ -254,7 +254,7 @@ def push_work_item(row: dict, epic_id: int) -> dict:
         resp = requests.post(url, headers=_patch_headers(), json=body)
         resp.raise_for_status()
     except requests.HTTPError as e:
-        print(f"[ado] ⚠️  Push failed for '{title}': HTTP {e.response.status_code} — {e.response.text[:200]}")
+        print(f"[ado] [WARN] Push failed for '{title}': HTTP {e.response.status_code} -- {e.response.text[:200]}")
         return row
 
     data     = resp.json()
@@ -267,7 +267,7 @@ def push_work_item(row: dict, epic_id: int) -> dict:
     row["ADOStatus"]     = data["fields"].get("System.State", "New")
     row["ADOPushedAt"]   = datetime.now(timezone.utc).isoformat()
 
-    print(f"[ado] ✅ Pushed #{item_id}: {title}")
+    print(f"[ado] Pushed #{item_id}: {title}")
     print(f"[ado]    {item_url}")
     return row
 
@@ -300,7 +300,7 @@ def sync_all_weeks() -> int:
     Silently skips if ADO_PAT is not configured.
     """
     if not is_configured():
-        print("[ado] Skipping sync — ADO_PAT not configured")
+        print("[ado] Skipping sync -- ADO_PAT not configured")
         return 0
 
     # Collect all IDs and their source files
@@ -329,7 +329,7 @@ def sync_all_weeks() -> int:
             resp = requests.get(url, headers=_get_headers())
             resp.raise_for_status()
         except requests.HTTPError as e:
-            print(f"[ado] ⚠️  Sync batch failed: HTTP {e.response.status_code} — last known state preserved")
+            print(f"[ado] [WARN] Sync batch failed: HTTP {e.response.status_code} -- last known state preserved")
             continue
         for item in resp.json().get("value", []):
             id_map[item["id"]] = item["fields"]
@@ -344,7 +344,7 @@ def sync_all_weeks() -> int:
                 print(f"[ado] Synced {n} item(s) in {week_dir.name}")
             total_updated += n
 
-    print(f"[ado] Sync complete — {total_updated} total item(s) updated across all weeks")
+    print(f"[ado] Sync complete -- {total_updated} total item(s) updated across all weeks")
     return total_updated
 
 
@@ -386,7 +386,7 @@ def main():
             updated_rows[i] = push_work_item(row, epic_id)
 
     classified_path.write_text(json.dumps(updated_rows, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(f"[ado] Write-back complete → {classified_path}")
+    print(f"[ado] Write-back complete -> {classified_path}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,10 @@
 {
+  "ReviewStatus": [
+    "approved",
+    "rejected",
+    "needs_reprocess",
+    "merged"
+  ],
   "RequestingTeam": [
     "Engineering",
     "PMO",

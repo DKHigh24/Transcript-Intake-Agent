@@ -56,6 +56,7 @@ REVIEW_COLUMNS = [
     "RiskScore",
     "ReadinessScore",
     "SignalScore",
+    "review_status",
     "_validation_warnings",
 ]
 
@@ -63,6 +64,9 @@ HEADER_FILL = PatternFill("solid", fgColor="1F3864")
 HEADER_FONT = Font(color="FFFFFF", bold=True, size=10)
 ALT_ROW_FILL = PatternFill("solid", fgColor="EEF2F7")
 WARN_FILL = PatternFill("solid", fgColor="FFF2CC")
+APPROVED_FILL = PatternFill("solid", fgColor="D5F5E3")
+REJECTED_FILL = PatternFill("solid", fgColor="FADBD8")
+PENDING_FILL = PatternFill("solid", fgColor="FEF9E7")
 THIN_BORDER = Border(
     left=Side(style="thin"),
     right=Side(style="thin"),
@@ -120,6 +124,13 @@ def export_review_workbook(
             cell.border = THIN_BORDER
             if col_name == "_validation_warnings" and value:
                 cell.fill = WARN_FILL
+            elif col_name == "review_status":
+                if value == "approved":
+                    cell.fill = APPROVED_FILL
+                elif value == "rejected":
+                    cell.fill = REJECTED_FILL
+                elif not value:
+                    cell.fill = PENDING_FILL
             elif row_idx % 2 == 0:
                 cell.fill = ALT_ROW_FILL
 
