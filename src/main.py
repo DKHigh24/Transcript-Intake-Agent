@@ -443,6 +443,32 @@ def _get_reviewer_id() -> str:
         return "unknown"
 
 
+_CHOICE_VALUES: dict | None = None
+
+
+def _get_choice_values() -> dict:
+    global _CHOICE_VALUES
+    if _CHOICE_VALUES is None:
+        cv_path = Path("config/choice_values.json")
+        _CHOICE_VALUES = json.loads(cv_path.read_text(encoding="utf-8")) if cv_path.exists() else {}
+    return _CHOICE_VALUES
+
+
+def _prompt_new_value(field: str, current) -> str:
+    """Prompt for a new field value.  For choice fields show a numbered menu."""
+    choices = _get_choice_values().get(field)
+    if choices:
+        print(f"  Allowed values for {field}:")
+        for i, v in enumerate(choices, 1):
+            marker = " <-- current" if v == current else ""
+            print(f"    {i:>2}.  {v}{marker}")
+        raw = input("  Enter number or type value: ").strip()
+        if raw.isdigit() and 1 <= int(raw) <= len(choices):
+            return choices[int(raw) - 1]
+        return raw
+    return input("  New value: ").strip()
+
+
 def run_review(date: str | None) -> None:
     """
     Interactive CLI review queue.
@@ -562,7 +588,7 @@ def run_review(date: str | None) -> None:
                     continue
                 current = row.get(field)
                 print(f"  Current value: {current}")
-                new_val = input("  New value: ").strip()
+                new_val = _prompt_new_value(field, current)
                 notes = input("  Notes (optional): ").strip()
                 result = rq.action_edit(
                     item, reviewer_id, field, new_val,
