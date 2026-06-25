@@ -495,11 +495,17 @@ def run_review(date: str | None) -> None:
             (r for r in rows if rq._slugify(r.get("Title", "")) == item["id"]),
             {}
         )
-        print(f"\n  TITLE:    {row.get('Title', item['id'])}")
-        print(f"  TYPE:     {row.get('AIUseCaseType', '?')}  |  CONFIDENCE: {row.get('ConfidenceLevel', '?')}")
-        print(f"  MATURITY: {row.get('MaturitySignal', '?')}  |  PRIORITY: {row.get('Priority', '?')}")
-        print(f"  EVIDENCE: {str(row.get('EvidenceSummary', ''))[:120]}")
-        print(f"  PROBLEM:  {str(row.get('ProblemPainPoint', ''))[:120]}")
+        print(f"\n  TITLE:          {row.get('Title', item['id'])}")
+        print(f"  TYPE:           {row.get('AIUseCaseType', '?')}  |  CONFIDENCE: {row.get('ConfidenceLevel', '?')}")
+        print(f"  MATURITY:       {row.get('MaturitySignal', '?')}  |  PRIORITY: {row.get('Priority', '?')}")
+        print(f"  BUCKET:         {row.get('OperatingBucket', '?')}")
+        print(f"  LEVEL:          {row.get('LevelOfAnalysis', '?')}")
+        print(f"  PROCESS STAGE:  {row.get('ProcessStage', '?')}")
+        print(f"  SUB. FUNCTION:  {row.get('SubOrdinateFunction', '?')}")
+        print(f"  TOOL:           {row.get('PrimaryTool', '?')}")
+        print(f"  OWNER / SME:    {row.get('SuggestedBusinessOwnerText', '?')}  /  {row.get('SuggestedSMEChampionText', '?')}")
+        print(f"  EVIDENCE:       {str(row.get('EvidenceSummary', ''))[:120]}")
+        print(f"  PROBLEM:        {str(row.get('ProblemPainPoint', ''))[:120]}")
         print()
 
         while True:
@@ -525,8 +531,33 @@ def run_review(date: str | None) -> None:
                 break
 
             elif choice == "E":
-                field = input("  Field name to edit: ").strip()
-                if field not in row and not field.startswith("_"):
+                _EDITABLE_FIELDS = [
+                    ("Title",                      "Title"),
+                    ("AIUseCaseType",               "Type"),
+                    ("ConfidenceLevel",             "Confidence"),
+                    ("Priority",                    "Priority"),
+                    ("MaturitySignal",              "Maturity Signal"),
+                    ("OperatingBucket",             "Bucket"),
+                    ("LevelOfAnalysis",             "Level"),
+                    ("ProcessStage",                "Process Stage"),
+                    ("SubOrdinateFunction",         "Sub. Function"),
+                    ("PrimaryTool",                 "Tool"),
+                    ("SuggestedBusinessOwnerText",  "Owner"),
+                    ("SuggestedSMEChampionText",    "SME Champion"),
+                    ("ProblemPainPoint",            "Problem / Pain Point"),
+                    ("EvidenceSummary",             "Evidence Summary"),
+                    ("NextStep",                    "Next Step"),
+                ]
+                print()
+                for idx, (fname, label) in enumerate(_EDITABLE_FIELDS, 1):
+                    print(f"    {idx:>2}.  {label:<30}  {row.get(fname, '')}")
+                print()
+                sel = input("  Edit field number (or type field name): ").strip()
+                if sel.isdigit() and 1 <= int(sel) <= len(_EDITABLE_FIELDS):
+                    field = _EDITABLE_FIELDS[int(sel) - 1][0]
+                else:
+                    field = sel
+                if field not in row:
                     print(f"  [review] Unknown field '{field}'.")
                     continue
                 current = row.get(field)
