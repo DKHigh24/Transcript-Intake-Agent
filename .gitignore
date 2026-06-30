@@ -17,3 +17,6 @@ input/transcripts/
 
 # Presentations (generated output)
 *.pptx
+
+# Demo (generated output and build)
+demo/
