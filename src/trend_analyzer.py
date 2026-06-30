@@ -28,12 +28,14 @@ _LEVEL_ORDER = [
     "Level 3 - Diagnostic Analysis",
     "Level 4 - Predictive/Risk Analysis",
     "Level 5 - Prescriptive Recommendation",
-    "Leve 6 - Action/Automation",
+    "Level 6 - Action/Automation",
     "Level 7 - Release Candidate",
 ]
 
 
 def _rank(order: list[str], value) -> int:
+    if value == "Leve 6 - Action/Automation":
+        value = "Level 6 - Action/Automation"
     try:
         return order.index(value)
     except (ValueError, TypeError):

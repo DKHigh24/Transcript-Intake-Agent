@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Transcript Intake Agent - Code Execution Line Diagram</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --panel: #ffffff;
+      --ink: #1f2d3d;
+      --muted: #5b6b7f;
+      --border: #d7e0ea;
+      --accent: #1f3864;
+    }
+    body {
+      margin: 0;
+      padding: 24px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .header {
+      background: linear-gradient(135deg, #1e2a3a 0%, #3a4b5c 100%);
+      color: #fff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      border: 1px solid #30465f;
+      margin-bottom: 18px;
+    }
+    .header h1 {
+      margin: 0 0 6px;
+      font-size: 24px;
+    }
+    .header p {
+      margin: 0;
+      color: #c8d4e3;
+      font-size: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      color: var(--accent);
+    }
+    .mono {
+      margin: 0;
+      white-space: pre;
+      overflow-x: auto;
+      font-family: Consolas, "Cascadia Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #152534;
+      background: #f9fbfe;
+      border: 1px solid #e1e8f0;
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .chip {
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      background: #fff;
+      color: #334a62;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <h1>Code Execution Line Diagram</h1>
+      <p>Transcript Intake Agent - actual module call paths from current source (main.py, watcher, ADO client, demo scripts).</p>
+    </div>
+
+    <div class="card">
+      <h2>End-to-end execution map</h2>
+      <pre class="mono">[Manual or scheduler trigger]
+    |
+    +--> python src/main.py --mode &lt;mode&gt; [--input ...] [flags]
+    |       |
+    |       +--> mode=dry-run
+    |       |      read_transcript()                  src/transcript_reader.py
+    |       |      -> clean_paragraphs()              src/transcript_cleaner.py
+    |       |      -> chunk_transcript()              src/transcript_chunker.py
+    |       |      -> writes output/transcript_chunks.json
+    |       |
+    |       +--> mode=extract
+    |       |      run_dry_run()
+    |       |      -> detect_candidates()             src/candidate_detector.py
+    |       |            -> call_llm()                src/llm_client.py
+    |       |      -> deduplicate_candidates()        src/candidate_deduplicator.py
+    |       |      -> writes output/candidates.json
+    |       |
+    |       +--> mode=classify
+    |       |      (uses output/candidates.json if present, else run_extract)
+    |       |      -> classify_candidates()           src/classifier.py
+    |       |            -> call_llm() per candidate  src/llm_client.py
+    |       |      -> validate_all_rows()             src/validators.py
+    |       |      -> writes output/classified_rows.json
+    |       |
+    |       +--> mode=payload
+    |       |      (uses output/classified_rows.json if present, else run_classify)
+    |       |      -> confidence split                main._split_rows()
+    |       |      -> export_review_workbook()        src/review_exporter.py
+    |       |      -> build_sharepoint_payload()      src/power_automate_client.py
+    |       |      -> generate_report()               src/report_generator.py
+    |       |      -> writes review_rows.xlsx / sharepoint_payload.json / ai_opportunity_report.html
+    |       |
+    |       +--> mode=push
+    |       |      run_payload()
+    |       |      -> push_to_power_automate()        src/power_automate_client.py
+    |       |
+    |       +--> mode=weekly   (full pipeline)
+    |       |      Step 0: ado_client.sync_all_weeks()               src/ado_client.py
+    |       |      clear stale output/{transcript_chunks,candidates,classified_rows}.json
+    |       |      run_payload()
+    |       |      resolve meeting date/week/month                    src/period_utils.py
+    |       |      build_queue_from_rows()                            src/review_queue.py
+    |       |      archive week artifacts -> output/weeks/YYYY-MM-DD/
+    |       |      update_master(primary_rows, date)                  src/master_exporter.py
+    |       |      if --push-ado:
+    |       |          review gate (approved unless --skip-review-gate)
+    |       |          get_or_create_epic()                           src/ado_client.py
+    |       |          push_work_item(row, epic_id) per row           src/ado_client.py
+    |       |          write ADOWorkItemId/Url/Status/PushedAt back to archived classified_rows.json
+    |       |      ingest_week(primary_rows, meeting_date)            src/history_store.py
+    |       |      if backdated:
+    |       |          rebuild_all_reports(history)
+    |       |              -> generate_weekly_report()                src/trend_reporter.py
+    |       |              -> generate_monthly_report()               src/trend_reporter.py
+    |       |              -> update_master() for each week           src/master_exporter.py
+    |       |              -> build_meeting_presentation()            src/presentation_builder.py
+    |       |      else:
+    |       |          generate_weekly_report(history, date, ..., week_rows, triage_rows)
+    |       |              -> weekly_analysis()                       src/trend_analyzer.py
+    |       |              -> build_report_html() + progress tab      src/report_generator.py
+    |       |          generate_monthly_report(history, month)
+    |       |              -> monthly_analysis()                      src/trend_analyzer.py
+    |       |      build_meeting_presentation(history, date, rows)    src/presentation_builder.py
+    |       |
+    |       +--> mode=monthly
+    |       |      load_history()                                     src/history_store.py
+    |       |      -> generate_monthly_report()                       src/trend_reporter.py
+    |       |
+    |       +--> mode=rebuild
+    |       |      load_history()
+    |       |      -> rebuild_all_reports() (all weeks, all months, master, presentation)
+    |       |
+    |       +--> mode=review
+    |       |      load output/weeks/&lt;date&gt;/classified_rows.json
+    |       |      migrate_list()                                     src/schema_migrations.py
+    |       |      build/load queue                                   src/review_queue.py
+    |       |      interactive A/R/E/K/Q loop
+    |       |      -> review_queue action_*() -> feedback_store       src/feedback_store.py
+    |       |      -> apply_queue_to_rows()
+    |       |      -> writes queue.json + updated archived classified_rows.json
+    |       |
+    |       +--> mode=apply-feedback
+    |       |      feedback_store.load_all()
+    |       |      -> feedback_applier.build_staged_version()         src/feedback_applier.py
+    |       |      -> writes config/feedback_staging/&lt;version&gt;/*
+    |       |
+    |       +--> mode=eval
+    |       |      evaluator.load_examples()                          src/evaluator.py
+    |       |      -> evaluator.run_eval() -> write_eval_report()
+    |       |
+    |       +--> mode=promote-feedback
+    |              feedback_applier.promote_version(version)
+    |              -> eval gate
+    |              -> append examples + append rules to classify skill
+    |
+    +--> python src/watch_transcripts.py
+    |       polls input/transcripts/
+    |       waits for stable signatures
+    |       subprocess.run([python, src/main.py, --input &lt;file&gt;, --mode weekly])
+    |       tracks processed file signatures in output/history/processed_files.json
+    |
+    +--> python src/ado_client.py --sync|--test|--push-all
+    |       standalone ADO utility (same module used by weekly mode)
+    |
+    +--> python demo/build_demo_deck.py
+    |       builds demo/AI_Transcript_Intake_Agent_Demo.pptx
+    |
+    +--> python demo/build_speaker_notes.py
+            builds demo/AI_Transcript_Intake_Agent_Speaker_Notes.docx</pre>
+    </div>
+
+    <div class="card">
+      <h2>AI boundary (where model calls actually happen)</h2>
+      <div class="chips">
+        <span class="chip">src/candidate_detector.py -> detect_candidates() -> llm_client.call_llm()</span>
+        <span class="chip">src/classifier.py -> classify_candidates() -> llm_client.call_llm()</span>
+        <span class="chip">src/presentation_builder.py -> _llm_slide_content() (meeting deck text)</span>
+      </div>
+      <p class="meta">Everything else is deterministic Python, file I/O, spreadsheet generation, HTML rendering, and ADO/HTTP API calls.</p>
+    </div>
+  </div>
+</body>
+</html>

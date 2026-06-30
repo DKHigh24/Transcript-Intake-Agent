@@ -95,15 +95,15 @@ ai-transcript-intake-agent/
 |   +-- choice_values.json          # allowed SharePoint choice values
 |   +-- sharepoint_field_mapping.json
 |   +-- mvp_output_schema.json      # full output row schema incl. ADO fields
-|   +-- extraction_settings.json
 |   +-- ado_field_mapping.json      # ADO REST API field path reference
 |
 +-- skills/
 |   +-- extract_opportunities.md
-|   +-- classify_opportunity.md
+|   +-- classify_opportunities.md
 |   +-- review_rules.md
 |   +-- weekly_report_format.md
 |   +-- token_optimization.md
+|   +-- presentation_slide_content.md
 |
 +-- src/
 |   +-- main.py                     # pipeline orchestrator + CLI
@@ -126,6 +126,10 @@ ai-transcript-intake-agent/
 |   +-- watch_transcripts.py        # folder watcher for auto-trigger
 |   +-- ado_client.py               # Azure DevOps integration (push + sync)
 |   +-- llm_client.py               # unified LLM adapter (OpenAI or Copilot SDK)
+|   +-- review_queue.py             # approval workflow queue + persistence
+|   +-- feedback_store.py           # reviewer corrections store
+|   +-- feedback_applier.py         # promote approved feedback into classifier
+|   +-- evaluator.py                # classifier eval summary for promotion gate
 |
 +-- input/
 |   +-- transcripts/                # drop DOCX files here
@@ -223,7 +227,7 @@ Outputs copied to `output/weeks/<YYYY-MM-DD>/`.
 ### Step 9b -- Update Master Workbook
 
 `output/master_opportunities.xlsx` updated. This is the Power BI source file.
-Includes all classification fields plus seven ADO tracking columns (AR-AX):
+Includes all classification fields plus `WorkstreamType` and seven ADO tracking columns (AS-AY):
 ADOWorkItemId, ADOUrl, ADOStatus, ADOAssignedTo, ADOIteration, ADOLastUpdated, ADOPushedAt.
 
 If the file is open in Excel, the pipeline warns and continues. Close it and re-run
@@ -317,17 +321,62 @@ or after manual history edits.
 .\.venv\Scripts\python.exe src\main.py --mode monthly --month 2026-06
 ```
 
+### Build overall distribution report (all-time footprint by layer)
+
+```powershell
+.\.venv\Scripts\python.exe src\main.py --mode distribution
+```
+
+Outputs: `output/reports/overall_distribution.html`
+
 ### Sync ADO statuses only (no pipeline run)
 
 ```powershell
 .\.venv\Scripts\python.exe src\ado_client.py --sync
 ```
 
+### One-time backfill for WorkstreamType on archived weeks
+
+```powershell
+.\.venv\Scripts\python.exe src\backfill_workstream_type.py
+```
+
+Use `--dry-run` to preview and `--force` to recompute existing values.
+
+### One-time OperatingBucket rebalance for Product Vitality rows
+
+```powershell
+.\.venv\Scripts\python.exe src\backfill_rebalance_operating_bucket.py
+```
+
+Use `--dry-run` to preview and `--force` for broader rebalance behavior.
+
 ### Push rows from latest classified_rows.json to ADO
 
 ```powershell
 .\.venv\Scripts\python.exe src\ado_client.py --push-all
 ```
+
+### Demo-week quick runbook
+
+Use this sequence to prep outputs before the demo:
+
+```powershell
+# 1) Sanity check code
+.\.venv\Scripts\python.exe -m compileall src
+
+# 2) Rebuild weekly/monthly artifacts from current history
+.\.venv\Scripts\python.exe src\main.py --mode rebuild
+
+# 3) Refresh all-time distribution view
+.\.venv\Scripts\python.exe src\main.py --mode distribution
+```
+
+Primary demo artifacts:
+- `output\reports\overall_distribution.html`
+- `output\reports\monthly_YYYY-MM.html`
+- `output\weeks\<YYYY-MM-DD>\weekly_report.html`
+- `output\meeting_presentations\*.pptx`
 
 ### Additional flags
 
@@ -446,7 +495,7 @@ operator action after review.
 | Classification | AI helps understand the work (summarize, analyze, categorize) |
 | Action | AI performs or changes the work (create, update, trigger, send) |
 | Both | The workflow both interprets and produces output or action |
-| Unknown / Needs Review | Default when unclear |
+| Unknown/Needs Review | Default when unclear |
 
 ### Operating Buckets
 
@@ -455,8 +504,18 @@ Outside / Pre-Sale
 Inside / Pre-Sale
 Manufacturing
 Post Shipment
-Cross-Functional / Governance
-Unknown / Needs Review
+Cross-Functional/Governance
+Engineering / Product Vitality
+```
+
+### Workstream Type
+
+```
+Transactional
+Product Vitality
+Governance
+Support
+Unknown
 ```
 
 ### Levels of Analysis
@@ -478,8 +537,8 @@ Unknown / Needs Review
 Aspirational / Not Started
 Exploring / Experimenting
 In Progress / Piloting
-Deployed / In Use
-Unknown / Needs Review
+Delivered / Active Today
+Unknown
 ```
 
 ### Signal Strength
@@ -508,6 +567,7 @@ Each classified row contains the fields below. ADO fields default to null until
 | CurrentStatus | (2) Needs Review |
 | Priority | High |
 | OperatingBucket | Classified |
+| WorkstreamType | Classified |
 | ProcessStage | Classified |
 | SubOrdinateFunction | Classified |
 | UpstreamDownstreamImpact | Classified |
@@ -587,6 +647,7 @@ Before any row is pushed to SharePoint or ADO:
 | EvidenceSummary | Grounded in what was actually said? |
 | SourceSpeaker / Timestamp | Traceable to the transcript? |
 | OperatingBucket | Correct business area? |
+| WorkstreamType | Transactional vs Product Vitality/Governance/Support correct? |
 | AIUseCaseType | Classification, Action, or Both? |
 | LevelOfAnalysis | Matches what was described? |
 | MaturitySignal | Honest about how mature this actually is? |
@@ -621,6 +682,7 @@ Teams adaptive card approval workflow
 ADO comment parsing (pull discussion updates back into reports)
 Power BI dataset push trigger
 Owner / SME notification on new push
+Workstream-specific process stage sets + cross-workstream relationship model
 ```
 
 See `docs/future-features/` for detailed proposals.

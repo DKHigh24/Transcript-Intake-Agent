@@ -36,7 +36,7 @@ The agent reads DOCX meeting transcripts from the Electronics AI Working Group, 
 10. Build sharepoint_payload.json.
 11. Generate ai_opportunity_report.html (Cards / Analytics / Table tabs).
 12. Archive week to output/weeks/<YYYY-MM-DD>/.
-13. Update master_opportunities.xlsx (Power BI source; includes ADO columns AR–AX).
+13. Update master_opportunities.xlsx (Power BI source; includes ADO columns AS–AY, with WeekDate at AR).
 14. Push to ADO (opt-in --push-ado only): create Issues under parent Epic; title dedup prevents duplicates; write back ADOWorkItemId/Url/Status/PushedAt to archive.
 15. Ingest into output/history/opportunities.json.
 16. Generate weekly report with 5 tabs: Cards / Analytics / Table / Trends / Progress.

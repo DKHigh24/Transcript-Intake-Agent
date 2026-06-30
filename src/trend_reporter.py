@@ -19,11 +19,13 @@ from report_generator import build_report_html, build_progress_tab_injection
 
 # ── palette (matches report_generator.py) ─────────────────────────────────────
 BUCKET_COLORS = {
+    "Cross-Functional/Governance": "#4A6FA5",
     "Crosss-Functional/Governance": "#4A6FA5",
     "Inside/Pre-Sale": "#47A8BD",
     "Outside/Pre-Sale": "#5DB7A0",
     "Manufacturing": "#E8A838",
     "Post Shipment": "#C0604D",
+    "Engineering / Product Vitality": "#8E7CC3",
 }
 _PALETTE = ["#4A6FA5", "#47A8BD", "#5DB7A0", "#E8A838", "#C0604D", "#8E7CC3", "#6B7A8D"]
 
@@ -189,6 +191,42 @@ new Chart(document.getElementById('cTrend'), {{
     return section, scripts
 
 
+def _collect_progress_rows(week_rows: list[dict]) -> list[dict]:
+    """
+    Build the historical row set consumed by the Progress tab.
+
+    Source of truth is archived weekly classified_rows.json files so ADO fields are
+    current and consistent with what operators review.
+    """
+    weeks_dir = Path(__file__).parent.parent / "output" / "weeks"
+    historical_rows: list[dict] = []
+    for week_dir in sorted(weeks_dir.glob("????-??-??")):
+        rows_path = week_dir / "classified_rows.json"
+        if not rows_path.exists():
+            continue
+        try:
+            rows_data = json.loads(rows_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"[trend] [WARN] skipping malformed archive {rows_path}: {exc}")
+            continue
+
+        for row in rows_data:
+            row_copy = dict(row)
+            row_copy.setdefault("_meeting_date", week_dir.name)
+            historical_rows.append(row_copy)
+
+    # Ensure the current week's in-memory rows are represented even before archive I/O.
+    if week_rows:
+        meeting_dates = {r.get("_meeting_date") for r in historical_rows if r.get("_meeting_date")}
+        for row in week_rows:
+            row_copy = dict(row)
+            row_copy.setdefault("_meeting_date", row_copy.get("_meeting_date") or "")
+            if row_copy.get("_meeting_date") or not meeting_dates:
+                historical_rows.append(row_copy)
+
+    return historical_rows
+
+
 def generate_weekly_report(
     history: list[dict],
     meeting_date: date,
@@ -215,23 +253,8 @@ def generate_weekly_report(
 
     extra_nav = "<div class=\"nav-tab\" onclick=\"showTab('trends')\">📈 Trends</div>"
     section, scripts = _build_trends_tab(a)
-
-    # Collect all historical rows across all weeks for Progress tab
-    _weeks_dir = Path(__file__).parent.parent / "output" / "weeks"
-    all_historical_rows: list[dict] = []
-    for week_dir in sorted(_weeks_dir.glob("????-??-??")):
-        p = week_dir / "classified_rows.json"
-        if p.exists():
-            week_date = week_dir.name
-            try:
-                rows_data = json.loads(p.read_text(encoding="utf-8"))
-                for r in rows_data:
-                    r_copy = dict(r)
-                    r_copy.setdefault("_meeting_date", week_date)
-                    all_historical_rows.append(r_copy)
-            except Exception:
-                pass
-    progress_nav, progress_section = build_progress_tab_injection(all_historical_rows)
+    progress_rows = _collect_progress_rows(week_rows)
+    progress_nav, progress_section = build_progress_tab_injection(progress_rows)
     extra_nav += "\n    " + progress_nav
 
     # Triage section (collapsible, omitted when empty)
@@ -261,9 +284,21 @@ def generate_weekly_report(
 
     generated = datetime.now().strftime("%B %d, %Y at %I:%M %p")
     suppressed_note = f", {n_suppressed} suppressed (low confidence)" if n_suppressed else ""
+    approved_count = sum(1 for r in week_rows if r.get("review_status") == "approved")
+    rejected_count = sum(1 for r in week_rows if r.get("review_status") == "rejected")
+    pending_count = sum(1 for r in week_rows if not r.get("review_status"))
+    review_summary = ""
+    if week_rows:
+        review_summary = (
+            " &middot; Review: "
+            f"<span style='color:#155724'>approved {approved_count}</span> / "
+            f"<span style='color:#721c24'>rejected {rejected_count}</span> / "
+            f"<span style='color:#856404'>pending {pending_count}</span>"
+        )
     header_sub = (f"Weekly Report &middot; {_esc(a['week'])} &middot; "
                   f"Meeting {_esc(a['date'])} &middot; "
-                  f"{a['total']} opportunities identified{suppressed_note} &middot; "
+                  f"{a['total']} opportunities identified{suppressed_note}"
+                  f"{review_summary} &middot; "
                   f"Generated {generated}")
 
     html_out = build_report_html(

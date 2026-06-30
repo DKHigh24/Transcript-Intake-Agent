@@ -663,5 +663,5 @@ def build_meeting_presentation(
         print(f"[presentation] NOTE: original file was locked — saved as {alt_filename}")
         print(f"[presentation] Close the original in PowerPoint and rename if needed.")
 
-    print(f"[presentation] saved \u2192 {out_path}")
+    print(f"[presentation] saved -> {out_path}")
     return out_path

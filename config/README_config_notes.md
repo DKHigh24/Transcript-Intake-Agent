@@ -9,7 +9,6 @@ Generated from Sharepoint_Field_Mapping.xlsx and extended to support the full AD
 | `sharepoint_field_mapping.json` | Logical agent field names → SharePoint internal names |
 | `choice_values.json` | Allowed SharePoint choice values (used for validation) |
 | `mvp_output_schema.json` | Full target JSON schema/defaults for each classified row |
-| `extraction_settings.json` | Keyword lists, confidence thresholds, session caps |
 | `ado_field_mapping.json` | Documents ADO REST API field paths used by `ado_client.py` (reference only — not read programmatically) |
 
 ## Schema notes (mvp_output_schema.json)
@@ -28,11 +27,26 @@ The schema now includes **7 ADO tracking fields** at the end of every row. These
 
 These fields are written back to `classified_rows.json` in the archive at push time,
 and updated on every subsequent `--mode weekly` run via the Step 0 bulk sync.
-They also appear as columns AR–AX in `master_opportunities.xlsx`.
+They also appear as columns AS–AY in `master_opportunities.xlsx` (with `WeekDate` at AR).
 
 ## SharePoint field notes
 
 - `UpstreamDownstreamImpact` is the normalized name for the display field `Upsteam/Downstream Impact`.
-- `Crosss-Functional/Governance` and `Repositiory/Marketplace Tooling` are preserved exactly as choice values to prevent payload validation failures.
-- `Leve 6 - Action/Automation` is preserved exactly from the source file.
+- `WorkstreamType` is a lifecycle semantics field (`Transactional`, `Product Vitality`, `Governance`, `Support`, `Unknown`) used for classification/reporting; it is not mapped in `sharepoint_field_mapping.json` unless a SharePoint column is provisioned.
+- `Repository/Marketplace Tooling` is the canonical `PrimaryTool` choice value.
 - The internal name for Human-In-The-Loop Required appears truncated as `Human_x005F_x002d_In_x005F_x002d_The_x005F_x002d_L`. This is preserved exactly.
+
+## Taxonomy model direction (future enhancement)
+
+Current behavior:
+- `ProcessStage` is modeled primarily around transactional flow.
+- `SubOrdinateFunction` is currently selected within that framing.
+
+Target behavior:
+- `SubOrdinateFunction` should be treated as an orthogonal capability lens that can occur across multiple `WorkstreamType` values and stages.
+- Additional stage vocabularies should be introduced per `WorkstreamType` (for example, dedicated stages for Product Vitality).
+- A relationship model should connect opportunities across workstreams/stages to expose cross-functional handoffs and dependencies.
+
+Implementation planning for this model is documented in:
+- `docs/future-features/workstream-process-relationship-model.md`
+- Includes a staged recommendation for `Engineering / Product Vitality` teams that plan by PI and execute by Sprint in Azure DevOps.

@@ -16,6 +16,7 @@ CHOICE_FIELDS = [
     "CurrentStatus",
     "Priority",
     "OperatingBucket",
+    "WorkstreamType",
     "ProcessStage",
     "UpstreamDownstreamImpact",
     "AIUseCaseType",
@@ -40,6 +41,28 @@ REQUIRED_DEFAULTS = {
     "PrimaryDataSource": "Meeting Transcript",
     "ScheduleHealth": "Not Started",
     "DataSensitivity": "Internal",
+}
+
+# Normalize common model/doc variants to SharePoint-accepted values.
+FIELD_VALUE_ALIASES = {
+    "OperatingBucket": {
+        "Crosss-Functional/Governance": "Cross-Functional/Governance",
+        "Cross-Functional / Governance": "Cross-Functional/Governance",
+        "Engineering/Product Vitality": "Engineering / Product Vitality",
+        "Engineering / Continuous Improvement": "Engineering / Product Vitality",
+        "Product Vitality / Continuous Improvement": "Engineering / Product Vitality",
+    },
+    "WorkstreamType": {
+        "Continuous Improvement": "Product Vitality",
+        "Product Vitality / Continuous Improvement": "Product Vitality",
+        "Cross-Functional Continuous Improvement": "Product Vitality",
+    },
+    "AIUseCaseType": {
+        "Unknown / Needs Review": "Unknown/Needs Review",
+    },
+    "LevelOfAnalysis": {
+        "Leve 6 - Action/Automation": "Level 6 - Action/Automation",
+    },
 }
 
 
@@ -68,6 +91,13 @@ def validate_row(row: dict, choice_values: dict) -> dict:
         value = corrected.get(field)
         if not value:
             continue
+
+        normalized = FIELD_VALUE_ALIASES.get(field, {}).get(value)
+        if normalized:
+            corrected[field] = normalized
+            warnings.append(f"'{field}' normalized from '{value}' to '{normalized}'")
+            value = normalized
+
         allowed = choice_values.get(field, [])
         if allowed and value not in allowed:
             warnings.append(

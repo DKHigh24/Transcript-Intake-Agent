@@ -5,6 +5,7 @@ Sends one candidate at a time. Validates against choice_values.json.
 Saves output/classified_rows.json.
 """
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -37,6 +38,9 @@ Rules:
 - Do not invent owners — use SuggestedBusinessOwnerText, SuggestedTechnicalOwnerText, SuggestedSMEChampionText as free text.
 - Use only values from the allowed_values object provided.
 - Use "Unknown/Needs Review" or leave blank when uncertain.
+- Use "Engineering / Product Vitality" for hardware/firmware/software product vitality, continuous improvement, NPD platform work, or engineering enablement that is not tied to one transactional pre-sale flow.
+- Set WorkstreamType using: Transactional | Product Vitality | Governance | Support | Unknown.
+- If ProcessStage/SubOrdinateFunction indicate engineering platform uplift (e.g., Solution Development + NPD/ECO/Software/Firmware updates), prefer WorkstreamType="Product Vitality".
 - Preserve source_speaker, source_timestamp, and evidence_summary from the candidate.
 - Set ConfidenceLevel to the candidate's confidence rating.
 - Score fields (ValueScore, EffortScore, RiskScore, ReadinessScore, SignalScore) should be integers 1-5.
@@ -98,6 +102,17 @@ def classify_candidates(
             # Propagate triage tag from candidate (set by session cap guard in main.py)
             if "_triage_reason" in candidate:
                 row["_triage_reason"] = candidate["_triage_reason"]
+            # Snapshot raw model output and initialise review fields
+            row["_model"] = copy.deepcopy({
+                k: v for k, v in row.items()
+                if not k.startswith("_") and k not in (
+                    "review_status", "reviewer_id", "reviewer_timestamp", "reviewer_notes"
+                )
+            })
+            row.setdefault("review_status", None)
+            row.setdefault("reviewer_id", None)
+            row.setdefault("reviewer_timestamp", None)
+            row.setdefault("reviewer_notes", None)
             classified.append(row)
         except Exception as e:
             print(f"  [warn] classification failed for '{title}': {e}")

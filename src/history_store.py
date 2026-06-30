@@ -28,6 +28,7 @@ _SNAPSHOT_FIELDS = [
     "Title",
     "ProblemPainPoint",
     "OperatingBucket",
+    "WorkstreamType",
     "ProcessStage",
     "AIUseCaseType",
     "PrimaryFunctionChoice",

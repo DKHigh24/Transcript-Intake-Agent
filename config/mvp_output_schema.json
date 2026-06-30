@@ -1,10 +1,12 @@
 {
+  "schema_version": 3,
   "Title": "",
   "ProblemPainPoint": "",
   "RequestingTeam": "",
   "CurrentStatus": "(2) Needs Review",
   "Priority": "High",
   "OperatingBucket": "",
+  "WorkstreamType": "Unknown",
   "ProcessStage": "",
   "UpstreamDownstreamImpact": "",
   "AIUseCaseType": "",
@@ -47,5 +49,10 @@
   "ADOIteration": null,
   "ADOAssignedTo": null,
   "ADOLastUpdated": null,
-  "ADOPushedAt": null
+  "ADOPushedAt": null,
+  "review_status": null,
+  "reviewer_id": null,
+  "reviewer_timestamp": null,
+  "reviewer_notes": null,
+  "_model": null
 }
