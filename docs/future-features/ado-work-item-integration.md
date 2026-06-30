@@ -101,7 +101,7 @@ Current deployment:
 | `src/main.py` | Step 0 (sync) + Step 9c (push) wired in |
 | `src/report_generator.py` | ADO chip on cards + Progress tab HTML |
 | `src/trend_reporter.py` | Progress tab injected into weekly reports |
-| `src/master_exporter.py` | ADO columns AR–AX in master XLSX |
+| `src/master_exporter.py` | ADO columns AS–AY in master XLSX (with WeekDate at AR) |
 | `openspec/changes/ado-pipeline-integration/` | Full OpenSpec change artifacts |
 
 ---

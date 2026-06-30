@@ -38,6 +38,9 @@ Rules:
 - Do not invent owners — use SuggestedBusinessOwnerText, SuggestedTechnicalOwnerText, SuggestedSMEChampionText as free text.
 - Use only values from the allowed_values object provided.
 - Use "Unknown/Needs Review" or leave blank when uncertain.
+- Use "Engineering / Product Vitality" for hardware/firmware/software product vitality, continuous improvement, NPD platform work, or engineering enablement that is not tied to one transactional pre-sale flow.
+- Set WorkstreamType using: Transactional | Product Vitality | Governance | Support | Unknown.
+- If ProcessStage/SubOrdinateFunction indicate engineering platform uplift (e.g., Solution Development + NPD/ECO/Software/Firmware updates), prefer WorkstreamType="Product Vitality".
 - Preserve source_speaker, source_timestamp, and evidence_summary from the candidate.
 - Set ConfidenceLevel to the candidate's confidence rating.
 - Score fields (ValueScore, EffortScore, RiskScore, ReadinessScore, SignalScore) should be integers 1-5.

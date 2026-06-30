@@ -16,6 +16,12 @@ how to keep it running week to week.
   - 🔗 ADO integration — how `--push-ado` closes the loop and how the weekly sync works,
   - 📂 the output layout, 🛠 a maintenance checklist + core rules, and
   - 🚑 a troubleshooting table.
+- **[`code_execution_line_diagram.html`](code_execution_line_diagram.html)** — a
+  detailed line-by-line execution map showing actual script/module call paths:
+  - `main.py` mode routing (`weekly`, `review`, `eval`, etc.),
+  - the watcher subprocess path (`watch_transcripts.py -> main.py --mode weekly`),
+  - ADO standalone utility path (`ado_client.py --sync/--push-all`), and
+  - explicit AI-boundary callouts (`candidate_detector`, `classifier`, presentation content).
 
 It is a single HTML file (Chart.js-style palette, no build step) — just open it
 in any browser.
@@ -30,6 +36,7 @@ From the repository root:
 
 # …or open directly
 Invoke-Item "Overview/process_overview.html"
+Invoke-Item "Overview/code_execution_line_diagram.html"
 ```
 
 ```bash
@@ -49,6 +56,6 @@ hand-built inline SVG inside `process_overview.html`; edit the `<rect>` / `<text
 Key things to keep in sync with `README.md`:
 - Pipeline step list (currently Steps 0–12)
 - ADO integration description (Step 0 sync, Step 9c push, Progress tab)
-- Output layout (especially the new ADO columns AR–AX in `master_opportunities.xlsx`)
+- Output layout (especially ADO columns AS–AY in `master_opportunities.xlsx`, with `WeekDate` at AR)
 - Command-line examples (especially `--push-ado` and `--sync`)
 - The weekly checklist in the "Keeping It Running" section

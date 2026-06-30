@@ -16,7 +16,12 @@ Rules:
 - Do not invent owners.
 - Use suggested owner text fields when person fields are not part of MVP.
 - Preserve source speaker, timestamp, and evidence summary.
-- Use "Unknown / Needs Review" when uncertain.
+- Use "Unknown/Needs Review" when uncertain.
+- Use "Engineering / Product Vitality" for hardware/firmware/software engineering,
+  NPD platform work, ECOs, and cross-functional continuous improvement that is not
+  tied to a single transactional pre-sale interaction.
+- Populate WorkstreamType with one of:
+  Transactional, Product Vitality, Governance, Support, Unknown.
 
 MaturitySignal rules:
 - Select the single best value from: Aspirational, In Progress / Piloting, Delivered / Active Today, Unknown

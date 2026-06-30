@@ -3,16 +3,16 @@ main.py
 CLI entrypoint for the AI Transcript Intake Agent.
 
 Modes:
-  dry-run  — Read, clean, chunk transcript → output/transcript_chunks.json
-  extract  — dry-run + extract candidates  → output/candidates.json
-  classify — extract + classify candidates → output/classified_rows.json
-  payload  — classify + export workbook + build payload
-  push     — payload + POST to Power Automate (requires ENABLE_POWER_AUTOMATE_PUSH=true)
-  weekly   — payload + archive the week + ingest into history + weekly trend report
+  dry-run  - Read, clean, chunk transcript -> output/transcript_chunks.json
+  extract  - dry-run + extract candidates  -> output/candidates.json
+  classify - extract + classify candidates -> output/classified_rows.json
+  payload  - classify + export workbook + build payload
+  push     - payload + POST to Power Automate (requires ENABLE_POWER_AUTOMATE_PUSH=true)
+  weekly   - payload + archive the week + ingest into history + weekly trend report
              (auto-rebuilds ALL reports when a back-dated transcript is detected)
              (also generates the upcoming session PPTX in output/meeting_presentations/)
-  monthly  — build the monthly trend report from accumulated history
-  rebuild  — regenerate every weekly and monthly report from current history
+  monthly  - build the monthly trend report from accumulated history
+  rebuild  - regenerate every weekly and monthly report from current history
              (use after manual history edits or back-dated ingests)
 
 Usage:
@@ -50,6 +50,7 @@ from report_generator import generate_report
 import period_utils
 from history_store import ingest_week, load_history
 from trend_reporter import generate_weekly_report, generate_monthly_report
+from distribution_reporter import generate_overall_distribution_report
 
 OUTPUT_DIR = Path("output")
 CHUNKS_PATH = str(OUTPUT_DIR / "transcript_chunks.json")
@@ -59,7 +60,7 @@ REVIEW_PATH = str(OUTPUT_DIR / "review_rows.xlsx")
 PAYLOAD_PATH = str(OUTPUT_DIR / "sharepoint_payload.json")
 
 MODES = ["dry-run", "extract", "classify", "payload", "push", "weekly", "monthly", "rebuild",
-         "review", "apply-feedback", "eval", "promote-feedback"]
+         "review", "apply-feedback", "eval", "promote-feedback", "distribution"]
 
 # ── Configurable thresholds (from .env, with defaults) ───────────────────────
 _DEDUP_THRESHOLD = float(os.getenv("DEDUP_SIMILARITY_THRESHOLD", "0.72"))
@@ -525,6 +526,7 @@ def run_review(date: str | None) -> None:
         print(f"  TYPE:           {row.get('AIUseCaseType', '?')}  |  CONFIDENCE: {row.get('ConfidenceLevel', '?')}")
         print(f"  MATURITY:       {row.get('MaturitySignal', '?')}  |  PRIORITY: {row.get('Priority', '?')}")
         print(f"  BUCKET:         {row.get('OperatingBucket', '?')}")
+        print(f"  WORKSTREAM:     {row.get('WorkstreamType', '?')}")
         print(f"  LEVEL:          {row.get('LevelOfAnalysis', '?')}")
         print(f"  PROCESS STAGE:  {row.get('ProcessStage', '?')}")
         print(f"  SUB. FUNCTION:  {row.get('SubOrdinateFunction', '?')}")
@@ -564,6 +566,7 @@ def run_review(date: str | None) -> None:
                     ("Priority",                    "Priority"),
                     ("MaturitySignal",              "Maturity Signal"),
                     ("OperatingBucket",             "Bucket"),
+                    ("WorkstreamType",              "Workstream Type"),
                     ("LevelOfAnalysis",             "Level"),
                     ("ProcessStage",                "Process Stage"),
                     ("SubOrdinateFunction",         "Sub. Function"),
@@ -772,7 +775,7 @@ def main() -> None:
     args = parser.parse_args()
 
     needs_input = args.mode not in ("monthly", "rebuild", "review",
-                                     "apply-feedback", "eval", "promote-feedback")
+                                     "apply-feedback", "eval", "promote-feedback", "distribution")
     if needs_input and not args.input:
         print(f"[error] --input is required for --mode {args.mode}")
         sys.exit(1)
@@ -828,6 +831,17 @@ def main() -> None:
                 print("[error] --feedback-version is required for --mode promote-feedback")
                 sys.exit(1)
             run_promote_feedback(args.feedback_version)
+        case "distribution":
+            history = load_history()
+            if not history:
+                print("[error] No history found. Run --mode weekly on at least one transcript first.")
+                sys.exit(1)
+            period_utils.ensure_dirs()
+            out = generate_overall_distribution_report(
+                history,
+                out_path=str(Path("output") / "reports" / "overall_distribution.html"),
+            )
+            print(f"[done] Overall distribution report: {out}")
 
 
 if __name__ == "__main__":

@@ -1,11 +1,12 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "Title": "",
   "ProblemPainPoint": "",
   "RequestingTeam": "",
   "CurrentStatus": "(2) Needs Review",
   "Priority": "High",
   "OperatingBucket": "",
+  "WorkstreamType": "Unknown",
   "ProcessStage": "",
   "UpstreamDownstreamImpact": "",
   "AIUseCaseType": "",

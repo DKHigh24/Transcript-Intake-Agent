@@ -14,7 +14,7 @@ Usage:
 import copy
 from typing import Any
 
-CURRENT_VERSION = 2
+CURRENT_VERSION = 3
 
 # ── Review fields added in v2 ────────────────────────────────────────────────
 _V2_REVIEW_FIELDS: dict[str, Any] = {
@@ -23,6 +23,10 @@ _V2_REVIEW_FIELDS: dict[str, Any] = {
     "reviewer_timestamp": None,
     "reviewer_notes": None,
     "_model": None,
+}
+
+_V3_WORKSTREAM_FIELDS: dict[str, Any] = {
+    "WorkstreamType": "Unknown",
 }
 
 
@@ -38,9 +42,20 @@ def _migrate_v1_to_v2(row: dict) -> dict:
     return row
 
 
+def _migrate_v2_to_v3(row: dict) -> dict:
+    """
+    Schema v2 -> v3: add WorkstreamType dimension for lifecycle semantics.
+    """
+    for field, default in _V3_WORKSTREAM_FIELDS.items():
+        if field not in row:
+            row[field] = default
+    return row
+
+
 # Ordered migration chain.  Key = source version, value = migration function.
 _MIGRATIONS: dict[int, Any] = {
     1: _migrate_v1_to_v2,
+    2: _migrate_v2_to_v3,
 }
 
 

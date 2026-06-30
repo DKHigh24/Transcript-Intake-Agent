@@ -38,7 +38,15 @@
     "Inside/Pre-Sale",
     "Manufacturing",
     "Post Shipment",
-    "Crosss-Functional/Governance"
+    "Cross-Functional/Governance",
+    "Engineering / Product Vitality"
+  ],
+  "WorkstreamType": [
+    "Transactional",
+    "Product Vitality",
+    "Governance",
+    "Support",
+    "Unknown"
   ],
   "ProcessStage": [
     "Opportunities",
@@ -53,8 +61,8 @@
     "Deployment",
     "Incident Identification",
     "Sustaining Engineering",
-    "Implementation",
-    "Sustaining",
+    "Solution Implementation",
+    "Sustaining Solution",
     "Resolution",
     "Feedback",
     "Governance/Intake"
@@ -151,7 +159,7 @@
     "Figma",
     "Salesforce",
     "Other",
-    "Repositiory/Marketplace Tooling"
+    "Repository/Marketplace Tooling"
   ],
   "PrimaryDataSource": [
     "Meeting Transcript",

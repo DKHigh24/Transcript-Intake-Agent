@@ -20,11 +20,13 @@ _OUTPUT = _ROOT / "output" / "ai_opportunity_report.html"
 
 # ── colour palette ──────────────────────────────────────────────────────────
 BUCKET_COLORS = {
+    "Cross-Functional/Governance": "#4A6FA5",
     "Crosss-Functional/Governance": "#4A6FA5",
     "Inside/Pre-Sale":               "#47A8BD",
     "Outside/Pre-Sale":              "#5DB7A0",
     "Manufacturing":                 "#E8A838",
     "Post Shipment":                 "#C0604D",
+    "Engineering / Product Vitality":"#8E7CC3",
 }
 TYPE_COLORS = {
     "Classification":  "#47A8BD",
@@ -37,6 +39,13 @@ SIGNAL_COLORS = {
     "Repeated Across Multiple Teams":"#47A8BD",
     "Repeated within One Team":      "#E8A838",
     "Isolated Example":              "#bbb",
+}
+WORKSTREAM_COLORS = {
+    "Transactional":   "#4A6FA5",
+    "Product Vitality":"#8E7CC3",
+    "Governance":      "#47A8BD",
+    "Support":         "#5DB7A0",
+    "Unknown":         "#6B7280",
 }
 MATURITY_COLORS = {
     "Delivered / Active Today": "#059669",   # green
@@ -73,6 +82,7 @@ LEVEL_COLORS = {
     "Level 3 - Diagnostic Analysis":     "#4A9ECC",
     "Level 4 - Predictive/Risk Analysis":"#3A7CA5",
     "Level 5 - Prescriptive Recommendation": "#2D5F8A",
+    "Level 6 - Action/Automation":   "#1E3F5A",
     "Leve 6 - Action/Automation":        "#1E3F5A",
     "Level 7 - Release Candidate":       "#0A1F2E",
 }
@@ -114,6 +124,7 @@ def _build_cards_html(rows: list[dict]) -> str:
         tool = r.get("PrimaryTool", "")
         stage = r.get("ProcessStage", "")
         sub_fn = r.get("SubOrdinateFunction", "")
+        workstream = r.get("WorkstreamType", "")
         value = r.get("ValueScore", "—")
         effort = r.get("EffortScore", "—")
         risk = r.get("RiskScore", "—")
@@ -162,7 +173,7 @@ def _build_cards_html(rows: list[dict]) -> str:
             )
 
         cards.append(f"""
-        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-signal="{signal}" data-maturity="{maturity}" data-ado-status="{ado_status if ado_id else ''}" data-review-status="{review_status or ''}">
+        <div class="card" data-bucket="{bucket}" data-type="{use_type}" data-workstream="{workstream}" data-signal="{signal}" data-maturity="{maturity}" data-ado-status="{ado_status if ado_id else ''}" data-review-status="{review_status or ''}">
           <div class="card-header" style="border-left: 5px solid {bucket_color};">
             <div class="card-title-row">
               <div class="card-title">{title}</div>
@@ -188,6 +199,7 @@ def _build_cards_html(rows: list[dict]) -> str:
             </div>
             <div class="card-meta">
               <div class="meta-item"><span class="label">Bucket</span><span>{bucket}</span></div>
+              <div class="meta-item"><span class="label">Workstream</span><span>{workstream or "—"}</span></div>
               <div class="meta-item"><span class="label">Level</span><span>{level}</span></div>
               <div class="meta-item"><span class="label">Process Stage</span><span>{stage or "—"}</span></div>
               <div class="meta-item"><span class="label">Sub. Function</span><span>{sub_fn or "—"}</span></div>
@@ -215,6 +227,7 @@ def _build_table_rows(rows: list[dict]) -> str:
         bucket = r.get("OperatingBucket", "")
         use_type = r.get("AIUseCaseType", "")
         stage = r.get("ProcessStage", "")
+        workstream = r.get("WorkstreamType", "")
         level = r.get("LevelOfAnalysis", "")
         signal = r.get("SignalStrength", "")
         tool = r.get("PrimaryTool", "")
@@ -231,6 +244,7 @@ def _build_table_rows(rows: list[dict]) -> str:
           <td>{bucket}</td>
           <td><span class="badge" style="background:{type_color};font-size:11px">{use_type}</span></td>
           <td>{stage}</td>
+          <td>{workstream or "—"}</td>
           <td>{level}</td>
           <td>{signal}</td>
           <td>{tool}</td>
@@ -448,6 +462,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <button class="filter-btn active" onclick="filterCards('all', this)">All ({total_rows})</button>
     {bucket_filter_btns}
     {type_filter_btns}
+    {workstream_filter_btns}
   </div>
   <div class="maturity-filters" id="maturity-filters">
     <span style="font-size:12px;font-weight:700;color:var(--muted);align-self:center">Maturity:</span>
@@ -471,6 +486,11 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <div class="chart-card">
       <div class="chart-title">By AI Use Case Type</div>
       <div class="chart-wrap"><canvas id="chartType"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">By Workstream Type</div>
+      <div class="chart-wrap"><canvas id="chartWorkstream"></canvas></div>
     </div>
 
     <div class="chart-card">
@@ -507,7 +527,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <table>
       <thead>
         <tr>
-          <th>Title</th><th>Bucket</th><th>Type</th><th>Process Stage</th>
+          <th>Title</th><th>Bucket</th><th>Type</th><th>Process Stage</th><th>Workstream</th>
           <th>Level</th><th>Signal</th><th>Tool</th><th>Owner / SME</th>
           <th>Val</th><th>Eff</th><th>Risk</th><th>Ready</th><th>Conf</th>
         </tr>
@@ -543,6 +563,7 @@ function _applyFilters() {{
     const matchFilter = _activeFilter === 'all' ||
       card.dataset.bucket === _activeFilter ||
       card.dataset.type === _activeFilter ||
+      card.dataset.workstream === _activeFilter ||
       card.dataset.signal === _activeFilter;
     const matchMaturity = _activeMaturity === 'all' ||
       card.dataset.maturity === _activeMaturity;
@@ -567,6 +588,7 @@ function filterMaturity(value, btn) {{
 // ── Charts ───────────────────────────────────────────────────────────────────
 const bucketData   = {bucket_data};
 const typeData     = {type_data};
+const workstreamData = {workstream_data};
 const signalData   = {signal_data};
 const levelData    = {level_data};
 const maturityData = {maturity_data};
@@ -608,6 +630,7 @@ function makeBar(id, data) {{
 
 makeDonut('chartBucket',   bucketData);
 makeDonut('chartType',     typeData);
+makeDonut('chartWorkstream', workstreamData);
 makeBar('chartSignal',     signalData);
 makeBar('chartLevel',      levelData);
 makeDonut('chartMaturity', maturityData);
@@ -714,7 +737,6 @@ def build_progress_tab_injection(all_historical_rows: list[dict]) -> tuple[str, 
     Returns (extra_nav, extra_section) strings for injection into build_report_html().
     Pass all rows from all historical weeks (including ADO fields).
     """
-    has_ado = any(r.get("ADOWorkItemId") for r in all_historical_rows)
     nav = '<div class="nav-tab" onclick="showTab(\'progress\')">🔄 Progress</div>'
     section = (
         f'<div id="tab-progress" class="section">'
@@ -762,6 +784,7 @@ def build_report_html(
     # Chart data
     bucket_data  = json.dumps(_bar_chart_data(rows, "OperatingBucket", BUCKET_COLORS))
     type_data    = json.dumps(_bar_chart_data(rows, "AIUseCaseType",   TYPE_COLORS))
+    workstream_data = json.dumps(_bar_chart_data(rows, "WorkstreamType", WORKSTREAM_COLORS))
     signal_data  = json.dumps(_bar_chart_data(rows, "SignalStrength",  SIGNAL_COLORS))
     level_data   = json.dumps(_bar_chart_data(rows, "LevelOfAnalysis", LEVEL_COLORS))
     maturity_data = json.dumps(_bar_chart_data(rows, "MaturitySignal", {
@@ -774,6 +797,7 @@ def build_report_html(
     # Filter buttons
     buckets = sorted({r.get("OperatingBucket", "") for r in rows if r.get("OperatingBucket")})
     types   = sorted({r.get("AIUseCaseType", "")   for r in rows if r.get("AIUseCaseType")})
+    workstreams = sorted({r.get("WorkstreamType", "") for r in rows if r.get("WorkstreamType")})
     bucket_btns = " ".join(
         f'<button class="filter-btn" onclick="filterCards(\'{b}\', this)">{b}</button>'
         for b in buckets
@@ -781,6 +805,10 @@ def build_report_html(
     type_btns = " ".join(
         f'<button class="filter-btn" onclick="filterCards(\'{t}\', this)">{t}</button>'
         for t in types
+    )
+    workstream_btns = " ".join(
+        f'<button class="filter-btn" onclick="filterCards(\'{w}\', this)">{w}</button>'
+        for w in workstreams
     )
 
     # Maturity filter buttons (ordered by signal importance, with counts)
@@ -818,11 +846,13 @@ def build_report_html(
         avg_readiness=avg_readiness,
         bucket_data=bucket_data,
         type_data=type_data,
+        workstream_data=workstream_data,
         signal_data=signal_data,
         level_data=level_data,
         maturity_data=maturity_data,
         bucket_filter_btns=bucket_btns,
         type_filter_btns=type_btns,
+        workstream_filter_btns=workstream_btns,
         maturity_filter_btns=maturity_btns,
         cards_html=_build_cards_html(rows),
         table_rows=_build_table_rows(rows),

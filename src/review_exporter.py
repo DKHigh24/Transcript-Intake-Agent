@@ -25,8 +25,9 @@ REVIEW_COLUMNS = [
     "PrimaryFunctionChoice",
     "LevelOfAnalysis",
     "OperatingBucket",
-    "ProcessStage",              # Column K
-    "SubOrdinateFunction",       # Column L
+    "WorkstreamType",
+    "ProcessStage",              # Column L
+    "SubOrdinateFunction",       # Column M
     "UpstreamDownstreamImpact",
     "SignalStrength",
     "RequestingTeam",
